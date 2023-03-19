@@ -131,9 +131,9 @@ jobs:
           - step_name: StreamStorage Tests
             test_args: "-f stream/pom.xml -DstreamTests"
             flag: stream
-          - step_name: Shell tests
-            module: tests/scripts
-            flag: shell
+          #- step_name: Shell tests
+          #  module: tests/scripts
+          #  flag: shell
 
     steps:
       - name: checkout

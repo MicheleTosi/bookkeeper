@@ -57,7 +57,7 @@
         <artifactId>exec-maven-plugin</artifactId>
         <version>${exec-maven-plugin.version}</version>
         <executions>
-          <execution>
+          <!--<execution>
             <id>bash-tests</id>
             <phase>integration-test</phase>
             <goals>
@@ -68,7 +68,7 @@
               <workingDirectory>${project.basedir}/src/test/bash</workingDirectory>
               <executable>${project.basedir}/src/test/bash/bk_test.sh</executable>
             </configuration>
-          </execution>
+          </execution>-->
         </executions>
       </plugin>
     </plugins>

@@ -321,7 +321,7 @@
                   <goal>exec</goal>
                 </goals>
                 <configuration>
-                  <workingDirectory>${basedir}/src/test/resources</workingDirectory>
+                  <workingDirectory>src/test/resources</workingDirectory>
                   <executable>${basedir}/src/test/resources/generateKeysAndCerts.sh</executable>
                 </configuration>
               </execution>

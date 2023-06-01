@@ -71,6 +71,9 @@
     <module>tests</module>
     <module>native-io</module>
     <module>testtools</module>
+
+    <!--isw2 module-->
+    <module>test-jacoco</module>
   </modules>
   <mailingLists>
     <mailingList>
@@ -112,10 +115,11 @@
     <testRetryCount>2</testRetryCount>
     <src.dir>src/main/java</src.dir>
     <test.additional.args />
-    
+
     <!-- ISW2 project -->
     <sonar.organization>mike-98</sonar.organization>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+    <sonar.coverage.jacoco.xmlReportPaths>../test-jacoco/target/site/jacoco-aggregate/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
 
     <!-- dependencies -->
     <arquillian-cube.version>1.18.2</arquillian-cube.version>
@@ -540,17 +544,17 @@
       </dependency>
 
       <dependency>
-         <!-- needed by ZooKeeper server tests utilities -->
+        <!-- needed by ZooKeeper server tests utilities -->
         <groupId>org.junit.jupiter</groupId>
         <artifactId>junit-jupiter-api</artifactId>
         <version>${junit5.version}</version>
       </dependency>
 
       <dependency>
-         <!-- needed by ZooKeeper server -->
-         <groupId>org.xerial.snappy</groupId>
-         <artifactId>snappy-java</artifactId>
-         <version>${snappy.version}</version>
+        <!-- needed by ZooKeeper server -->
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>${snappy.version}</version>
       </dependency>
 
       <!-- curator dependencies -->
@@ -930,7 +934,7 @@
             <compilerArg>-Xlint:unchecked</compilerArg>
             <!-- https://issues.apache.org/jira/browse/MCOMPILER-205 -->
             <compilerArg>-Xpkginfo:always</compilerArg>
-	      </compilerArgs>
+          </compilerArgs>
         </configuration>
       </plugin>
       <plugin>
@@ -938,7 +942,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${maven-surefire-plugin.version}</version>
         <configuration>
-          <argLine>-Xmx2G -Djava.net.preferIPv4Stack=true -Dio.netty.leakDetection.level=paranoid ${test.additional.args}</argLine>
+          <!--<argLine>-Xmx2G -Djava.net.preferIPv4Stack=true -Dio.netty.leakDetection.level=paranoid ${test.additional.args}</argLine>-->
           <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
           <forkCount>${forkCount.variable}</forkCount>
           <reuseForks>false</reuseForks>
@@ -1246,6 +1250,31 @@
         </plugins>
       </build>
     </profile>
+
+    <!-- isw2 project -->
+    <profile>
+      <id>jacoco-coverage</id>
+      <activation>
+          <activeByDefault>false</activeByDefault>
+      </activation>
+      <build>
+          <plugins>
+              <plugin>
+                  <groupId>org.jacoco</groupId>
+                  <artifactId>jacoco-maven-plugin</artifactId>
+                  <executions>
+                      <execution>
+                          <id>prepare-agent</id>
+                          <goals>
+                              <goal>prepare-agent</goal>
+                          </goals>
+                      </execution>
+                  </executions>
+              </plugin>
+          </plugins>
+      </build>
+    </profile>
+
     <!-- the profiles below are only for development purpose -->
     <profile>
       <id>dev</id>

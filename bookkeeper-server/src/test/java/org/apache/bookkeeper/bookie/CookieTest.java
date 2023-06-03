@@ -1,4 +1,4 @@
-package org.apache.bookkeeper;
+package org.apache.bookkeeper.bookie.net;
 
 import org.apache.bookkeeper.bookie.Cookie;
 import org.junit.Test;
@@ -8,12 +8,10 @@ import org.junit.runners.Parameterized;
 import java.util.Arrays;
 import java.util.Collection;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 @RunWith(value = Parameterized.class)
 public class CookieTest {
-
-    private Cookie cookie;
 
     public CookieTest(int layoutVersion, String bookieId, String journalDirs, String ledgerDirs, String instanceId) {
         configure(layoutVersion, bookieId, journalDirs, ledgerDirs, instanceId);
@@ -27,7 +25,7 @@ public class CookieTest {
         builder.setLedgerDirs(ledgerDirs);
         builder.setInstanceId(instanceId);
 
-        this.cookie = builder.build();
+        Cookie cookie = builder.build();
     }
 
     @Parameterized.Parameters
@@ -39,6 +37,6 @@ public class CookieTest {
 
     @Test
     public void testVerify() {
-        assertEquals(true, true);
+        assertTrue(true);
     }
 }

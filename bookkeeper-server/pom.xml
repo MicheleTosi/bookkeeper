@@ -213,6 +213,53 @@
   </dependencies>
   <build>
     <plugins>
+      <!-- Plugin per creare la directory di output ->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>1.8</version>
+        <executions>
+          <execution>
+            <id>create-output-directory</id>
+            <phase>initialize</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <mkdir dir="${project.build.directory}/ba-dua"/>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin-->
+
+      <!-- Plugin per l'unpacking delle dipendenze -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>2.10</version>
+        <executions>
+          <execution>
+            <id>extract-zip</id>
+            <phase>compile</phase>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>br.usp.each.saeg</groupId>
+                  <artifactId>ba-dua</artifactId>
+                  <version>0.8.0</version>
+                  <type>zip</type>
+                  <outputDirectory>${project.build.directory}</outputDirectory>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -258,7 +305,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${maven-surefire-plugin.version}</version>
-        <configuration>
+        <!--configuration>
           <trimStackTrace>false</trimStackTrace>
           <properties>
             <property>
@@ -266,7 +313,7 @@
               <value>org.apache.bookkeeper.common.testing.util.TimedOutTestsListener</value>
             </property>
           </properties>
-        </configuration>
+        </configuration-->
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -346,6 +393,71 @@
             <configuration>
               <skipTests>true</skipTests>
             </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <!--Ba-dua coverage-->
+    <profile>
+      <id>ba-dua-coverage</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <BADUACLI>./target/lib/ba-dua-cli-0.8.0-all.jar</BADUACLI>
+        <BADUASER>./target/badua.ser</BADUASER>
+        <CLASSES>./target/classes</CLASSES>
+        <BADUAXML>./target/badua.xml</BADUAXML>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <phase>verify</phase>
+              </execution>
+            </executions>
+                <configuration>
+                  <argLine>
+                    -javaagent:${project.build.directory}/lib/ba-dua-agent-rt-0.8.0-all.jar
+                    -Doutput.file=target/badua.ser
+                  </argLine>
+                </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>3.0.0</version>
+            <executions>
+              <execution>
+                <id>run-baduacli</id>
+                <phase>test</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>java</executable>
+                  <arguments>
+                    <argument>-jar</argument>
+                    <argument>${BADUACLI}</argument>
+                    <argument>report</argument>
+                    <argument>-input</argument>
+                    <argument>${BADUASER}</argument>
+                    <argument>-classes</argument>
+                    <argument>${CLASSES}</argument>
+                    <argument>-show-classes</argument>
+                    <argument>-show-methods</argument>
+                    <argument>-xml</argument>
+                    <argument>${BADUAXML}</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>

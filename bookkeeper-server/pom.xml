@@ -213,27 +213,6 @@
   </dependencies>
   <build>
     <plugins>
-      <!-- Plugin per creare la directory di output ->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <version>1.8</version>
-        <executions>
-          <execution>
-            <id>create-output-directory</id>
-            <phase>initialize</phase>
-            <goals>
-              <goal>run</goal>
-            </goals>
-            <configuration>
-              <target>
-                <mkdir dir="${project.build.directory}/ba-dua"/>
-              </target>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin-->
-
       <!-- Plugin per l'unpacking delle dipendenze -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

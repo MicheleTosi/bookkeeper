@@ -55,7 +55,7 @@ public class LedgerHandleBookieIT extends BookKeeperClusterTestCase{
         }
         try {
             lh.read(entryId, entryId).getEntry(entryId).getEntryBytes();
-            Assert.fail("Non ci dovrebbe esseree nessun bookie che mantiene i dati della entry");
+            Assert.fail("Non ci dovrebbe essere nessun bookie che mantiene i dati della entry");
         } catch (org.apache.bookkeeper.client.api.BKException e) {
             assertTrue(true);
         }

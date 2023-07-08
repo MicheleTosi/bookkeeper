@@ -48,10 +48,11 @@ public class BookieImplTests {
         private final File[] ledgerDirs;
         private final String input;
         private ServerConfiguration conf;
+        private boolean expException;
 
         public FormatTest(File[] journalDirs,File[] ledgerDirs,File[] indexDirs,
                 String gcEntryLogMetadataCachePath, boolean isInteractive, boolean force, String input,
-                                                        boolean expectedResult) {
+                                                        boolean expectedResult, boolean expException) {
             this.isInteractive = isInteractive;
             this.force=force;
             this.expectedResult=expectedResult;
@@ -60,34 +61,35 @@ public class BookieImplTests {
             this.indexDirs=indexDirs;
             this.gcEntryLogMetadataCachePath=gcEntryLogMetadataCachePath;
             this.input=input;
+            this.expException=expException;
         }
 
         @Parameterized.Parameters
         public static Collection<Object[]> testCasesArgument() throws Exception {
             return Arrays.asList(new Object[][]{
-                    //{null, new File[]{}, new File[]{null}, null, true, true, "Y", false},
-                    {new File[]{}, new File[]{null}, getArrayWithAnInvalidDir(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "N", false},
-                    {new File[]{null}, getArrayWithAnInvalidDir(), getInvalidDirsArray(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "NULL", false},
-                    {getArrayWithAnInvalidDir(), getInvalidDirsArray(), getArrayWithInvalidAndExistentValidDirs(), getArrayWithAFile()[0].getAbsolutePath(), true, false, "E", false},
-                    {getInvalidDirsArray(), getArrayWithInvalidAndExistentValidDirs(), getArrayWithInvalidAndNotExistentValidDirs(), getArrayWithValidDir()[0].getAbsolutePath(), true, true, "", false},
-                    {getArrayWithInvalidAndExistentValidDirs(), getArrayWithInvalidAndNotExistentValidDirs(), getInvalidAndNullDirs(), null, true, false, "Y", false},
-                    {getArrayWithInvalidAndNotExistentValidDirs(), getInvalidAndNullDirs(), getFileAndInvalidDir(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), false, true, "N", false},
-                    {getInvalidAndNullDirs(), getFileAndInvalidDir(), getArrayWithValidExistentDir(), getArrayWithValidExistentDir()[0].getAbsolutePath(), false, false, "NULL", false},
-                    {getFileAndInvalidDir(), getArrayWithValidExistentDir(), getArrayValidExistentDirs(), getArrayWithAFile()[0].getAbsolutePath(), true, true, "N", false},
-                    {getArrayWithValidExistentDir(), getArrayValidExistentDirs(), getArrayValidDirs(), getArrayWithValidDir()[0].getAbsolutePath(), true, false, "T", true},
-                    {getArrayValidExistentDirs(), getArrayValidDirs(), getArrayValidExistentAndNullDirs(), null, true, true, "NULL", false},
-                    {getArrayValidDirs(), getArrayValidExistentAndNullDirs(), getFileAndValidExistentDirs(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false},
-                    {getArrayValidExistentAndNullDirs(), getFileAndValidExistentDirs(), getArrayWithValidDir(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", true},
-                    {getFileAndValidExistentDirs(), getArrayWithValidDir(), getArrayWithValidDirs(), getArrayWithAFile()[0].getAbsolutePath(), true, false, "Y", true},
-                    {getArrayWithValidDir(), getArrayWithValidDirs(), getArrayWithValidAndNullDirs(), getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", true},
-                    {getArrayWithValidDirs(), getArrayWithValidAndNullDirs(), getFileAndValidDir(), null, true, true, "NULL", false},
-                    {getArrayWithValidAndNullDirs(), getFileAndValidDir(), getArrayWithAFile(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false},
-                    {getFileAndValidDir(), getArrayWithAFile(), getArrayWithFiles(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", true},
-                    {getArrayWithAFile(), getArrayWithFiles(), null, getArrayWithAFile()[0].getAbsolutePath(), true, false, "Y", true},
-                    {getArrayWithFiles(), null, new File[]{}, getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", false},
+                    {null, new File[]{}, new File[]{null}, null, true, true, "Y", false, true},
+                    {new File[]{}, new File[]{null}, getArrayWithAnInvalidDir(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "N", false, true},
+                    {new File[]{null}, getArrayWithAnInvalidDir(), getInvalidDirsArray(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "NULL", false, true},
+                    {getArrayWithAnInvalidDir(), getInvalidDirsArray(), getArrayWithInvalidAndExistentValidDirs(), getArrayWithAFile()[0].getAbsolutePath(), true, false, "E", false, false},
+                    {getInvalidDirsArray(), getArrayWithInvalidAndExistentValidDirs(), getArrayWithInvalidAndNotExistentValidDirs(), getArrayWithValidDir()[0].getAbsolutePath(), true, true, "", false, false},
+                    {getArrayWithInvalidAndExistentValidDirs(), getArrayWithInvalidAndNotExistentValidDirs(), getInvalidAndNullDirs(), null, true, false, "Y", false, false},
+                    {getArrayWithInvalidAndNotExistentValidDirs(), getInvalidAndNullDirs(), getFileAndInvalidDir(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), false, true, "N", false, false},
+                    {getInvalidAndNullDirs(), getFileAndInvalidDir(), getArrayWithValidExistentDir(), getArrayWithValidExistentDir()[0].getAbsolutePath(), false, false, "NULL", false, false},
+                    {getFileAndInvalidDir(), getArrayWithValidExistentDir(), getArrayValidExistentDirs(), getArrayWithAFile()[0].getAbsolutePath(), true, true, "N", false, false},
+                    {getArrayWithValidExistentDir(), getArrayValidExistentDirs(), getArrayValidDirs(), getArrayWithValidDir()[0].getAbsolutePath(), true, false, "T", true, false},
+                    {getArrayValidExistentDirs(), getArrayValidDirs(), getArrayValidExistentAndNullDirs(), null, true, true, "NULL", false, true},
+                    {getArrayValidDirs(), getArrayValidExistentAndNullDirs(), getFileAndValidExistentDirs(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false, true},
+                    {getArrayValidExistentAndNullDirs(), getFileAndValidExistentDirs(), getArrayWithValidDir(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", true, true},
+                    {getFileAndValidExistentDirs(), getArrayWithValidDir(), getArrayWithValidDirs(), getArrayWithAFile()[0].getAbsolutePath(), true, false, "Y", true, false},
+                    {getArrayWithValidDir(), getArrayWithValidDirs(), getArrayWithValidAndNullDirs(), getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", true, true},
+                    {getArrayWithValidDirs(), getArrayWithValidAndNullDirs(), getFileAndValidDir(), null, true, true, "NULL", false, true},
+                    {getArrayWithValidAndNullDirs(), getFileAndValidDir(), getArrayWithAFile(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false, true},
+                    {getFileAndValidDir(), getArrayWithAFile(), getArrayWithFiles(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", true, false},
+                    {getArrayWithAFile(), getArrayWithFiles(), null, getArrayWithAFile()[0].getAbsolutePath(), true, false, "Y", true, false},
+                    {getArrayWithFiles(), null, new File[]{}, getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", false, true},
 
-                    //pit
-                    {getArrayWithAFile(), getArrayWithFiles(), null, getArrayWithAFile()[0].getAbsolutePath(), false, false, "Y", false},
+
+                    {getArrayWithAFile(), getArrayWithFiles(), null, getArrayWithAFile()[0].getAbsolutePath(), false, false, "Y", true, false}, //PIT
             });
         }
 
@@ -107,47 +109,34 @@ public class BookieImplTests {
 
         @Test
         public void formatTest() {
-            Thread testThread=new Thread(()->{
-                try {
-                    switch (this.input) {
-                        case "Y":
-                            System.setIn(new ByteArrayInputStream("Y".getBytes()));
-                            break;
-                        case "N":
-                            System.setIn(new ByteArrayInputStream("N".getBytes()));
-                            break;
-                        case "E":
-                            System.setIn(new InputStream() {
-                                @Override
-                                public int read() throws IOException {
-                                    throw new IOException("Simulated IOException");
-                                }
-                            });
-                            break;
-                        case "NULL":
-                            System.setIn(null);
-                            break;
-                        case "":
-                            break;
-                    }
-                    boolean result = BookieImpl.format(conf, isInteractive, force);
-                    assertEquals(result, this.expectedResult);
-                }catch(NullPointerException e) {
-                    e.printStackTrace();
-                    assertSame("NULL", this.input);
-                }catch (Exception e){
-                    e.printStackTrace();
-                }
-            });
-            testThread.start();
             try {
-                testThread.join(20000);
-            } catch (InterruptedException e) {
-                if("".equals(this.input)) {
-                    assertEquals("", this.input);
-                }else{
-                    fail("Non dovrebbe esserci un timeout");
+                switch (this.input) {
+                    case "Y":
+                        System.setIn(new ByteArrayInputStream("Y".getBytes()));
+                        break;
+                    case "N":
+                        System.setIn(new ByteArrayInputStream("N".getBytes()));
+                        break;
+                    case "E":
+                        System.setIn(new InputStream() {
+                            @Override
+                            public int read() throws IOException {
+                                throw new IOException("Simulated IOException");
+                            }
+                        });
+                        break;
+                    case "NULL":
+                        System.setIn(null);
+                        break;
+                    case "":
+                        break;
                 }
+                boolean result = BookieImpl.format(conf, isInteractive, force);
+                assertEquals(result, this.expectedResult);
+                assertFalse(this.expException);
+            }catch(NullPointerException e) {
+                e.printStackTrace();
+                assertTrue(this.expException);
             }
         }
 
@@ -173,7 +162,6 @@ public class BookieImplTests {
                 this.bookie= new TestBookieImpl(conf);
                 this.bookie.start();
             } catch (Exception e) {
-                e.printStackTrace();
                 Assert.fail("Si è verificato un errore non previsto");
             }
         }
@@ -225,17 +213,19 @@ public class BookieImplTests {
         private final Object ctx;
         private final byte[] masterKey;
         private final boolean expException;
+        private final boolean nullCallback;
         private TestBookieImpl bookie;
         private File dir;
         private final TmpDirs tmpDirs=new TmpDirs();
 
 
-        public AddEntryTest(ByteBuf entry, boolean ackBeforeSync, Object ctx, byte[] masterKey, boolean expException){
+        public AddEntryTest(ByteBuf entry, boolean ackBeforeSync, boolean nullCallback, Object ctx, byte[] masterKey, boolean expException){
             this.entry=entry;
             this.ackBeforeSync=ackBeforeSync;
             this.ctx=ctx;
             this.masterKey=masterKey;
             this.expException=expException;
+            this.nullCallback=nullCallback;
         }
 
         @Parameterized.Parameters
@@ -244,9 +234,9 @@ public class BookieImplTests {
             final byte[] validMK="masterKey".getBytes(StandardCharsets.UTF_8);
 
             return Arrays.asList(new Object[][]{
-                    {getValidEntry(), false, null, validMK, false},
-                    {null, true, null, validMK, true},
-                    {getInvalidEntry(), true, new Object(), null, true},
+                    {getValidEntry(), false, false, null, validMK, false},
+                    {null, true, true, null, "".getBytes(StandardCharsets.UTF_8), true},
+                    {getInvalidEntry(), false, true, new Object(), null, true},
             });
         }
 
@@ -260,7 +250,6 @@ public class BookieImplTests {
                 this.bookie= new TestBookieImpl(conf);
                 this.bookie.start();
             } catch (Exception e) {
-                e.printStackTrace();
                 Assert.fail("Si è verificato un errore non previsto");
             }
         }
@@ -277,25 +266,29 @@ public class BookieImplTests {
 
         @Test
         public void recoveryAddEntryTest(){
+
             try {
 
                 AtomicBoolean complete= new AtomicBoolean(false);
                 ByteBuf entry=Unpooled.buffer(this.entry.capacity());
                 entry.writeBytes(this.entry);
+                if(this.nullCallback) {
+                    this.bookie.recoveryAddEntry(entry, null,this.ctx, this.masterKey);
+                    assertEquals(1, entry.refCnt());
+                }else {
+                    this.bookie.recoveryAddEntry(entry, (rc, ledgerId, entryId, addr, ctx) -> complete.set(true),
+                            this.ctx, this.masterKey);
 
-
-                this.bookie.recoveryAddEntry(entry,(rc, ledgerId, entryId, addr, ctx) -> complete.set(true),
-                        this.ctx, this.masterKey);
-
-                Awaitility.await().untilTrue(complete);
-                assertEquals(0, entry.refCnt());
+                    Awaitility.await().untilTrue(complete);
+                    assertEquals(0, entry.refCnt());
+                }
                 if(this.expException){
                     Assert.fail("Attesa exception");
                 }
             } catch (Exception e) {
-                e.printStackTrace();
                 assertTrue(this.expException);
             }
+
         }
 
         @Test
@@ -305,18 +298,24 @@ public class BookieImplTests {
                 AtomicBoolean complete= new AtomicBoolean(false);
                 ByteBuf entry=Unpooled.buffer(this.entry.capacity());
                 entry.writeBytes(this.entry);
+                    if(this.nullCallback) {
+                        this.bookie.addEntry(entry,
+                                this.ackBeforeSync, null, this.ctx, this.masterKey);
+                        assertEquals(1, entry.refCnt());
+                    }else {
+                        this.bookie.addEntry(entry,
+                                this.ackBeforeSync, (rc, ledgerId, entryId, addr, ctx) -> complete.set(true), this.ctx, this.masterKey);
 
-                this.bookie.addEntry(entry,
-                        this.ackBeforeSync, (rc, ledgerId, entryId, addr, ctx) -> complete.set(true), this.ctx, this.masterKey);
-
-                Awaitility.await().untilTrue(complete);
-                assertEquals(0, entry.refCnt());
+                        Awaitility.await().untilTrue(complete);
+                        assertEquals(0, entry.refCnt());
+                    }
                 if(this.expException){
                     Assert.fail("Attesa exception");
                 }
             } catch (Exception e) {
                 assertTrue(this.expException);
             }
+
         }
     }
 
@@ -339,7 +338,6 @@ public class BookieImplTests {
                 this.bookie= new TestBookieImpl(conf);
                 this.bookie.start();
             } catch (Exception e) {
-                e.printStackTrace();
                 Assert.fail("Si è verificato un errore non previsto");
             }
         }
@@ -426,7 +424,6 @@ public class BookieImplTests {
                 this.bookie= new TestBookieImpl(conf);
                 this.bookie.start();
             } catch (Exception e) {
-                e.printStackTrace();
                 Assert.fail("Si è verificato un errore non previsto");
             }
 
@@ -471,7 +468,6 @@ public class BookieImplTests {
                     Assert.fail("Attesa exception");
                 }
             } catch (Exception e) {
-                e.printStackTrace();
                 assertTrue(this.expException);
             }
         }
@@ -502,7 +498,6 @@ public class BookieImplTests {
                 this.bookie= new TestBookieImpl(conf);
                 this.bookie.start();
             } catch (Exception e) {
-                e.printStackTrace();
                 Assert.fail("Si è verificato un errore non previsto");
             }
         }
@@ -571,7 +566,6 @@ public class BookieImplTests {
             }catch(BookieException e){
                 assertTrue(true);
             } catch (Exception e) {
-                e.printStackTrace();
                 Assert.fail("Si dve verificare BookieException");
             }
         }
@@ -598,7 +592,6 @@ public class BookieImplTests {
             }catch(BookieException e){
                 assertTrue(true);
             } catch (Exception e) {
-                e.printStackTrace();
                 Assert.fail("Si dve verificare BookieException");
             }
         }

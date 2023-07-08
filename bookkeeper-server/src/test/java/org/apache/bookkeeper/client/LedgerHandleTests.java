@@ -242,12 +242,14 @@ public class LedgerHandleTests {
         private final Object ctx;
         private final boolean clientClosed;
         private final boolean expException;
+        private final boolean notNullCallback;
         private LedgerHandle lh;
 
-        public AddAndReadEntryTest(int firstEntry, int lastEntry, Object ctx, boolean clientClosed, boolean expException) {
+        public AddAndReadEntryTest(int firstEntry, int lastEntry, boolean notNullCallback, Object ctx, boolean clientClosed, boolean expException) {
             super(3);
             this.firstEntry = firstEntry;
             this.lastEntry = lastEntry;
+            this.notNullCallback=notNullCallback;
             this.ctx = ctx;
             this.clientClosed=clientClosed;
             this.expException=expException;
@@ -257,16 +259,16 @@ public class LedgerHandleTests {
         public static Collection<Object[]> testCasesArgument() {
 
             return Arrays.asList(new Object[][]{
-                    {-1, -2, new Object(), false, true},
-                    {-1, -1, null, false, true},
-                    {-1, 0, new Object(), false, true},
-                    {0, -1, null, false, true},
-                    {0, 0, new Object(), false, false},
-                    {0, 0, null, true, true},
-                    {0, 1, null, false, true},
-                    {1, 0, new Object(), false, true},
-                    {1, 1, null, false, true},
-                    {1, 2, new Object(), false, true},
+                    {-1, -2, true, new Object(), false, true},
+                    {-1, -1, false, null, false, true},
+                    {-1, 0, true, new Object(), false, true},
+                    {0, -1, false, null, false, true},
+                    {0, 0, true, new Object(), false, false},
+                    {0, 0, false, null, true, true},
+                    {0, 1, true, null, false, true},
+                    {1, 0, false, new Object(), false, true},
+                    {1, 1, true, null, false, true},
+                    {1, 2, false, new Object(), false, true},
             });
         }
 
@@ -301,15 +303,24 @@ public class LedgerHandleTests {
             if(this.clientClosed){
                 bk.close(); //aggiunto per aumentare la coverage su PIT
             }
-            lh.asyncReadEntries(this.firstEntry, this.lastEntry, new AsyncCallback.ReadCallback() {
-                @Override
-                public void readComplete(int rc, LedgerHandle lh, Enumeration<LedgerEntry> seq, Object ctx) {
-                    retCode.set(rc);
-                    sequence.set(seq);
-                    complete.set(true);
+            if(this.notNullCallback) {
+                lh.asyncReadEntries(this.firstEntry, this.lastEntry, new AsyncCallback.ReadCallback() {
+                    @Override
+                    public void readComplete(int rc, LedgerHandle lh, Enumeration<LedgerEntry> seq, Object ctx) {
+                        retCode.set(rc);
+                        sequence.set(seq);
+                        complete.set(true);
+                    }
+                }, this.ctx);
+                Awaitility.await().untilTrue(complete);
+            }else{
+                try {
+                    lh.asyncReadEntries(this.firstEntry, this.lastEntry, null, this.ctx);
+                }catch(NullPointerException e){
+                    assertTrue(true);
+                    return;
                 }
-            }, this.ctx);
-            Awaitility.await().untilTrue(complete);
+            }
             if(retCode.get()==BKException.Code.OK) {
                 assertEquals(data, new String(sequence.get().nextElement().getEntry(), StandardCharsets.UTF_8));
                 assertFalse(expException);
@@ -354,10 +365,12 @@ public class LedgerHandleTests {
         private final Object ctx;
         private final boolean addedEntry;
         private final boolean expException;
+        private final boolean notNullCallback;
         private LedgerHandle lh;
 
-        public AddAndAsyncReadLastEntryTest(Object ctx, boolean addedEntry, boolean expException) {
+        public AddAndAsyncReadLastEntryTest(boolean notNullCallback, Object ctx, boolean addedEntry, boolean expException) {
             super(3);
+            this.notNullCallback=notNullCallback;
             this.ctx = ctx;
             this.addedEntry=addedEntry;
             this.expException=expException;
@@ -367,8 +380,9 @@ public class LedgerHandleTests {
         public static Collection<Object[]> testCasesArgument() {
 
             return Arrays.asList(new Object[][]{
-                    {new Object(), true, false},
-                    {null, false, true},
+                    {true, new Object(), true, false},
+                    {true, null, false, true},
+                    {false, null, false, true},
             });
         }
 
@@ -403,15 +417,24 @@ public class LedgerHandleTests {
             if(addedEntry) {
                 lh.addEntry(data.getBytes(StandardCharsets.UTF_8));
             }
-            lh.asyncReadLastEntry(new AsyncCallback.ReadCallback() {
-                @Override
-                public void readComplete(int rc, LedgerHandle lh, Enumeration<LedgerEntry> seq, Object ctx) {
-                    retCode.set(rc);
-                    sequence.set(seq);
-                    complete.set(true);
+            if(this.notNullCallback) {
+                lh.asyncReadLastEntry(new AsyncCallback.ReadCallback() {
+                    @Override
+                    public void readComplete(int rc, LedgerHandle lh, Enumeration<LedgerEntry> seq, Object ctx) {
+                        retCode.set(rc);
+                        sequence.set(seq);
+                        complete.set(true);
+                    }
+                }, this.ctx);
+                Awaitility.await().untilTrue(complete);
+            }else{
+                try{
+                    lh.asyncReadLastEntry(null, this.ctx);
+                }catch (NullPointerException e){
+                    assertTrue(true);
+                    return;
                 }
-            }, this.ctx);
-            Awaitility.await().untilTrue(complete);
+            }
             if(retCode.get()==BKException.Code.OK) {
                 assertEquals(data, new String(sequence.get().nextElement().getEntry(), StandardCharsets.UTF_8));
             }else{
@@ -497,11 +520,13 @@ public class LedgerHandleTests {
         private final long timeOutInMillis;
         private final boolean parallel;
         private final boolean isClosed;
+        private boolean notNullCallback;
 
-        public ReadLastAddConfirmedAndEntryAsyncTest(long entryId, long timeOutInMillis, boolean parallel, Object ctx, boolean isClosed){
+        public ReadLastAddConfirmedAndEntryAsyncTest(long entryId, long timeOutInMillis, boolean notNullCallback, boolean parallel, Object ctx, boolean isClosed){
             super(3);
             this.entryId =entryId;
             this.timeOutInMillis=timeOutInMillis;
+            this.notNullCallback=notNullCallback;
             this.parallel=parallel;
             this.ctx=ctx;
             this.isClosed=isClosed;
@@ -511,10 +536,9 @@ public class LedgerHandleTests {
         public static Collection<Object[]> testCasesArgument() {
 
             return Arrays.asList(new Object[][]{
-                    {-1, -1, true, new Object(), true},
-                    {0, 0, false, null, false},
-                    {0, 0, false, null, true},
-                    {1, 1, true, new Object(), true},
+                    {-1, -1, true, true, new Object(), true},
+                    {0, 0, true, false, null, false},
+                    {1, 1, false, true, new Object(), true},
             });
         }
 
@@ -549,16 +573,25 @@ public class LedgerHandleTests {
             if(isClosed){
                 lh.close();
             }
-            lh.asyncReadLastConfirmedAndEntry(this.entryId, this.timeOutInMillis, this.parallel, new AsyncCallback.ReadLastConfirmedAndEntryCallback() {
-                @Override
-                public void readLastConfirmedAndEntryComplete(int rc, long lastConfirmed, LedgerEntry entry, Object ctx) {
-                    rcAtomic.set(rc);
-                    lastConf.set(lastConfirmed);
-                    entryAtomicReference.set(entry);
-                    complete.set(true);
+            if(this.notNullCallback) {
+                lh.asyncReadLastConfirmedAndEntry(this.entryId, this.timeOutInMillis, this.parallel, new AsyncCallback.ReadLastConfirmedAndEntryCallback() {
+                    @Override
+                    public void readLastConfirmedAndEntryComplete(int rc, long lastConfirmed, LedgerEntry entry, Object ctx) {
+                        rcAtomic.set(rc);
+                        lastConf.set(lastConfirmed);
+                        entryAtomicReference.set(entry);
+                        complete.set(true);
+                    }
+                }, this.ctx);
+                Awaitility.await().untilTrue(complete);
+            }else{
+                try{
+                    lh.asyncReadLastConfirmedAndEntry(this.entryId, this.timeOutInMillis, this.parallel, null, this.ctx);
+                }catch(NullPointerException e){
+                    assertTrue(true);
+                    return;
                 }
-            }, this.ctx);
-            Awaitility.await().untilTrue(complete);
+            }
             if(rcAtomic.get()==BKException.Code.OK){
                 assertEquals(entryId, lastConf.get());
                 if(this.entryId==lh.getLastAddConfirmed()) {
@@ -579,12 +612,14 @@ public class LedgerHandleTests {
         private final Object ctx;
         private final boolean useV2WireProtocol;
         private final boolean isClosed;
+        private final boolean notNullCallback;
         private LedgerHandle lh;
         private BookKeeper bk;
 
-        public AsyncReadLastConfirmedTest(Object ctx, boolean useV2WireProtocol, boolean isClosed){
+        public AsyncReadLastConfirmedTest(boolean notNullCallback, Object ctx, boolean useV2WireProtocol, boolean isClosed){
             super(3);
             this.ctx=ctx;
+            this.notNullCallback=notNullCallback;
             this.useV2WireProtocol=useV2WireProtocol; //aggiunto per PIT
             this.isClosed=isClosed;
         }
@@ -593,10 +628,10 @@ public class LedgerHandleTests {
         public static Collection<Object[]> testCasesArgument() {
 
             return Arrays.asList(new Object[][]{
-                    {new Object(), false, true},
-                    {null, true, true},
-                    {new Object(), false, false},
-                    {null, true, false},
+                    {true, new Object(), false, true},
+                    {false, null, true, true},
+                    {true, new Object(), false, false},
+                    {false, null, true, false},
             });
         }
 
@@ -605,7 +640,7 @@ public class LedgerHandleTests {
             // Inizializza BookKeeper utilizzando la configurazione
             ClientConfiguration bkConf = TestBKConfiguration.newClientConfiguration();
             bkConf.setMetadataServiceUri(zkUtil.getMetadataServiceUri());
-            bkConf.setExplictLacInterval(0);
+            bkConf.setExplictLacInterval(1);
             bkConf.setUseV2WireProtocol(useV2WireProtocol);
             bk = new BookKeeper(bkConf);
 
@@ -629,8 +664,6 @@ public class LedgerHandleTests {
             AtomicLong entry=new AtomicLong();
             AtomicLong lastConf=new AtomicLong();
             AtomicBoolean complete=new AtomicBoolean(false);
-
-            long entryId=lh.addEntry(data.getBytes(StandardCharsets.UTF_8));
             lh.asyncAddEntry(data.getBytes(), new AsyncCallback.AddCallback() {
                 @Override
                 public void addComplete(int rc, LedgerHandle lh, long entryId, Object ctx) {
@@ -639,22 +672,35 @@ public class LedgerHandleTests {
                 }
             }, null);
             Awaitility.await().untilTrue(complete);
+            if(!this.useV2WireProtocol){
+                lh.force().get();
+            }
+            complete.set(false);
             if(isClosed){
                 lh.close();
             }
-            complete.set(false);
-            lh.asyncReadLastConfirmed(new AsyncCallback.ReadLastConfirmedCallback() {
-                @Override
-                public void readLastConfirmedComplete(int rc, long lastConfirmed, Object ctx) {
-                    rcAtomic.set(rc);
-                    lastConf.set(lastConfirmed);
-                    complete.set(true);
+
+            if(this.notNullCallback) {
+                lh.asyncReadLastConfirmed(new AsyncCallback.ReadLastConfirmedCallback() {
+                    @Override
+                    public void readLastConfirmedComplete(int rc, long lastConfirmed, Object ctx) {
+                        rcAtomic.set(rc);
+                        lastConf.set(lastConfirmed);
+                        complete.set(true);
+                    }
+                }, this.ctx);
+                Awaitility.await().untilTrue(complete);
+            }else{
+                try {
+                    lh.asyncReadLastConfirmed(null, this.ctx);
+                }catch(NullPointerException e) {
+                    assertTrue(true);
+                    return;
                 }
-            }, this.ctx);
-            Awaitility.await().untilTrue(complete);
+            }
             if(!isClosed) {
                 if (rcAtomic.get() == BKException.Code.OK) {
-                    assertEquals(entryId, lastConf.get());
+                    assertEquals(entry.get(), lastConf.get());
                 } else {
                     assertEquals(-1L, lastConf.get());
                 }

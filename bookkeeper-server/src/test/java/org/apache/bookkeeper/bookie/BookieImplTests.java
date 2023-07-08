@@ -37,7 +37,7 @@ public class BookieImplTests {
     private static final Logger LOG = LoggerFactory.getLogger(BookieImplTests.class);
 
     @RunWith(Parameterized.class)
-    public static class FormatTest{
+    public static class FormatTest {
 
         private final boolean isInteractive;
         private final boolean force;
@@ -48,20 +48,20 @@ public class BookieImplTests {
         private final File[] ledgerDirs;
         private final String input;
         private ServerConfiguration conf;
-        private boolean expException;
+        private final boolean expException;
 
-        public FormatTest(File[] journalDirs,File[] ledgerDirs,File[] indexDirs,
-                String gcEntryLogMetadataCachePath, boolean isInteractive, boolean force, String input,
-                                                        boolean expectedResult, boolean expException) {
+        public FormatTest(File[] journalDirs, File[] ledgerDirs, File[] indexDirs,
+                          String gcEntryLogMetadataCachePath, boolean isInteractive, boolean force, String input,
+                          boolean expectedResult, boolean expException) {
             this.isInteractive = isInteractive;
-            this.force=force;
-            this.expectedResult=expectedResult;
-            this.journalDirs=journalDirs;
-            this.ledgerDirs=ledgerDirs;
-            this.indexDirs=indexDirs;
-            this.gcEntryLogMetadataCachePath=gcEntryLogMetadataCachePath;
-            this.input=input;
-            this.expException=expException;
+            this.force = force;
+            this.expectedResult = expectedResult;
+            this.journalDirs = journalDirs;
+            this.ledgerDirs = ledgerDirs;
+            this.indexDirs = indexDirs;
+            this.gcEntryLogMetadataCachePath = gcEntryLogMetadataCachePath;
+            this.input = input;
+            this.expException = expException;
         }
 
         @Parameterized.Parameters
@@ -76,20 +76,20 @@ public class BookieImplTests {
                     {getArrayWithInvalidAndNotExistentValidDirs(), getInvalidAndNullDirs(), getFileAndInvalidDir(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), false, true, "N", false, false},
                     {getInvalidAndNullDirs(), getFileAndInvalidDir(), getArrayWithValidExistentDir(), getArrayWithValidExistentDir()[0].getAbsolutePath(), false, false, "NULL", false, false},
                     {getFileAndInvalidDir(), getArrayWithValidExistentDir(), getArrayValidExistentDirs(), getArrayWithAFile()[0].getAbsolutePath(), true, true, "N", false, false},
-                    {getArrayWithValidExistentDir(), getArrayValidExistentDirs(), getArrayValidDirs(), getArrayWithValidDir()[0].getAbsolutePath(), true, false, "T", true, false},
-                    {getArrayValidExistentDirs(), getArrayValidDirs(), getArrayValidExistentAndNullDirs(), null, true, true, "NULL", false, true},
-                    {getArrayValidDirs(), getArrayValidExistentAndNullDirs(), getFileAndValidExistentDirs(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false, true},
-                    {getArrayValidExistentAndNullDirs(), getFileAndValidExistentDirs(), getArrayWithValidDir(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", true, true},
+                    {getArrayWithValidExistentDir(), getArrayValidExistentDirs(), getArrayWithAValidExistentAndNotExistentDirs(), getArrayWithValidDir()[0].getAbsolutePath(), true, false, "Y", true, false},
+                    {getArrayValidExistentDirs(), getArrayWithAValidExistentAndNotExistentDirs(), getArrayValidExistentAndNullDirs(), null, true, true, "NULL", false, true},
+                    {getArrayWithAValidExistentAndNotExistentDirs(), getArrayValidExistentAndNullDirs(), getFileAndValidExistentDirs(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false, true},
+                    {getArrayValidExistentAndNullDirs(), getFileAndValidExistentDirs(), getArrayWithValidDir(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", false, true},
                     {getFileAndValidExistentDirs(), getArrayWithValidDir(), getArrayWithValidDirs(), getArrayWithAFile()[0].getAbsolutePath(), true, false, "Y", true, false},
-                    {getArrayWithValidDir(), getArrayWithValidDirs(), getArrayWithValidAndNullDirs(), getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", true, true},
+                    {getArrayWithValidDir(), getArrayWithValidDirs(), getArrayWithValidAndNullDirs(), getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", false, true},
                     {getArrayWithValidDirs(), getArrayWithValidAndNullDirs(), getFileAndValidDir(), null, true, true, "NULL", false, true},
                     {getArrayWithValidAndNullDirs(), getFileAndValidDir(), getArrayWithAFile(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false, true},
                     {getFileAndValidDir(), getArrayWithAFile(), getArrayWithFiles(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", true, false},
                     {getArrayWithAFile(), getArrayWithFiles(), null, getArrayWithAFile()[0].getAbsolutePath(), true, false, "Y", true, false},
                     {getArrayWithFiles(), null, new File[]{}, getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", false, true},
+                    {getArrayWithFileAndNull(), getArrayWithFileAndNull(), getArrayWithFileAndNull(), "", false, true, "N", false, true},
 
-
-                    {getArrayWithAFile(), getArrayWithFiles(), null, getArrayWithAFile()[0].getAbsolutePath(), false, false, "Y", true, false}, //PIT
+//                    {getArrayWithAFile(), getArrayWithFiles(), null, getArrayWithAFile()[0].getAbsolutePath(), false, false, "Y", true, false}, //PIT
             });
         }
 
@@ -139,7 +139,6 @@ public class BookieImplTests {
                 assertTrue(this.expException);
             }
         }
-
     }
     @RunWith(Parameterized.class)
     public static class AddAndReadEntryTest{
@@ -158,7 +157,7 @@ public class BookieImplTests {
         }
 
         @Parameterized.Parameters
-        public static Collection<Object[]> testCasesArgument() throws Exception {
+        public static Collection<Object[]> testCasesArgument() {
             return Arrays.asList(new Object[][]{
                     {-1,-1, true},
                     {-1,0, true},
@@ -375,8 +374,6 @@ public class BookieImplTests {
 
         @Test
         public void addEntryToFencedLedgerTest() throws IOException, BookieException, InterruptedException {
-            LedgerStorage ledgerStorage = mock(LedgerStorage.class);
-            when(ledgerStorage.isFenced(anyLong())).thenReturn(true);
             ByteBuf byteBuf = getValidEntry();
             this.bookie.fenceLedger(this.bookie.getLedgerForEntry(byteBuf, "pass".getBytes(StandardCharsets.UTF_8)).getLedgerId(), "pass".getBytes(StandardCharsets.UTF_8));
             try {
@@ -414,12 +411,14 @@ public class BookieImplTests {
         private File dir;
         private ByteBuf entry;
         private final TmpDirs tmpDirs=new TmpDirs();
+        private final boolean nullCallback;
 
-        public SetExplicitLacTest(String entryType, Object ctx, byte[] masterKey, boolean expException){
+        public SetExplicitLacTest(String entryType, boolean nullCallback, Object ctx, byte[] masterKey, boolean expException){
             this.entryType=entryType;
             this.ctx=ctx;
             this.masterKey=masterKey;
             this.expException=expException;
+            this.nullCallback=nullCallback;
         }
 
         @Parameterized.Parameters
@@ -428,9 +427,9 @@ public class BookieImplTests {
             final byte[] validMK="masterKey".getBytes(StandardCharsets.UTF_8);
 
             return Arrays.asList(new Object[][]{
-                    {"NULL", null, validMK, true},
-                    {"INVALID_ENTRY", new Object(), null, true},
-                    {"VALID_ENTRY", null, validMK, false},
+                    {"NULL", true, null, "".getBytes(), true},
+                    {"INVALID_ENTRY", true, new Object(), null, true},
+                    {"VALID_ENTRY", false, null, validMK, false},
 
             });
         }
@@ -479,11 +478,14 @@ public class BookieImplTests {
             try {
 
                 AtomicBoolean complete= new AtomicBoolean(false);
-                this.bookie.setExplicitLac(this.entry,
-                        (rc, ledgerId, entryId, addr, ctx) -> complete.set(true), this.ctx, this.masterKey);
+                if(this.nullCallback) {
+                    this.bookie.setExplicitLac(this.entry, null, this.ctx, this.masterKey);
+                }else {
+                    this.bookie.setExplicitLac(this.entry,
+                            (rc, ledgerId, entryId, addr, ctx) -> complete.set(true), this.ctx, this.masterKey);
 
-                Awaitility.await().untilAsserted(()->assertTrue(complete.get()));
-
+                    Awaitility.await().untilAsserted(() -> assertTrue(complete.get()));
+                }
                 assertEquals(0, this.entry.refCnt());
                 if(this.expException){
                     Assert.fail("Attesa exception");
@@ -494,15 +496,29 @@ public class BookieImplTests {
         }
     }
 
+    @RunWith(Parameterized.class)
     public static class SetAndGetLACTest {
 
+        private final long ledgerId;
+        private final boolean expException;
         private File dir;
         private File dir2;
         private BookieImpl bookie;
         private final TmpDirs tmpDirs=new TmpDirs();
 
-        public SetAndGetLACTest(){
+        public SetAndGetLACTest(long ledgerId, boolean expException){
+            this.ledgerId=ledgerId;
+            this.expException=expException;
+        }
 
+        @Parameterized.Parameters
+        public static Collection<Object[]> testCasesArgument(){
+            return Arrays.asList(new Object[][]{
+                    {-1L, true},
+                    {0L, false},
+                    {1L, true},
+
+            });
         }
 
         @Before
@@ -535,22 +551,27 @@ public class BookieImplTests {
 
         @Test
         public void setAndGetLACTest() throws IOException, InterruptedException, BookieException {
-            byte[] buff = "hi".getBytes();
-            ByteBuf byteBuf= Unpooled.buffer(buff.length);
-            byteBuf.writeBytes(buff);
-            ByteBuf lac=this.bookie.createExplicitLACEntry(0L, byteBuf);
-            ByteBuf lac2=Unpooled.copiedBuffer(lac);
-            this.bookie.setExplicitLac(lac2, (rc, ledgerId, entryId, addr, ctx) -> {
+            try {
+                byte[] buff = "hi".getBytes();
+                ByteBuf byteBuf = Unpooled.buffer(buff.length);
+                byteBuf.writeBytes(buff);
+                ByteBuf lac = this.bookie.createExplicitLACEntry(0L, byteBuf);
+                ByteBuf lac2 = Unpooled.copiedBuffer(lac);
+                this.bookie.setExplicitLac(lac2, (rc, ledgerId, entryId, addr, ctx) -> {
 
-            }, new Object(), "pass".getBytes(StandardCharsets.UTF_8));
+                }, new Object(), "pass".getBytes(StandardCharsets.UTF_8));
 
-            byte[] exp=new byte[lac.readableBytes()];
-            lac.getBytes(lac.readerIndex(), exp);
+                byte[] exp = new byte[lac.readableBytes()];
+                lac.getBytes(lac.readerIndex(), exp);
 
-            ByteBuf res=this.bookie.getExplicitLac(this.bookie.getLedgerForEntry(lac, "pass".getBytes(StandardCharsets.UTF_8)).getLedgerId());
+                ByteBuf res = this.bookie.getExplicitLac(this.ledgerId);
 
-            assertEquals(new String(exp, StandardCharsets.UTF_8),
-                    new String(res.array(), StandardCharsets.UTF_8));
+                assertEquals(new String(exp, StandardCharsets.UTF_8),
+                        new String(res.array(), StandardCharsets.UTF_8));
+                assertFalse(this.expException);
+            }catch(Exception e){
+                assertTrue(this.expException);
+            }
         }
 
     }

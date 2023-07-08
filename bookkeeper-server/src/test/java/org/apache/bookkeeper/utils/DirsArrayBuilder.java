@@ -52,7 +52,7 @@ public class DirsArrayBuilder {
         return new File[]{new File("bookie-impl-test/bookie"),new File("bookie-impl-test/bookie2")};
     }
 
-    public static File[] getArrayValidDirs() throws Exception {
+    public static File[] getArrayWithAValidExistentAndNotExistentDirs() throws Exception {
         tmpDirs.createNew("bookie-impl-test/bookie", null);
         return new File[]{new File("bookie-impl-test/bookie"),new File("bookie-impl-test/bookie2")};
     }
@@ -105,6 +105,17 @@ public class DirsArrayBuilder {
         }
         fileList.add(file);
         return new File[]{file};
+    }
+
+    public static File[] getArrayWithFileAndNull() throws Exception {
+        File dir=tmpDirs.createNew("bookie-impl-test/bookie", null);
+        File file=new File(dir.getAbsolutePath()+"file.txt");
+        boolean created = file.createNewFile();
+        if (!created){
+            throw new Exception("Errore nella creazione del file");
+        }
+        fileList.add(file);
+        return new File[]{file, null};
     }
 
     public static File[] getArrayWithFiles() throws Exception {

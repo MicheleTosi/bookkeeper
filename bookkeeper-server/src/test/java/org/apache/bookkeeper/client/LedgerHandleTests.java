@@ -89,6 +89,7 @@ public class LedgerHandleTests {
                 long entryId=lh.addEntry(this.data);
                 assertEquals(0, entryId);
                 assertEquals(lh.getLength(), this.data.length);
+                assertFalse(this.expException);
             }catch(BKException | InterruptedException | NullPointerException e){
                 assertTrue(this.expException);
             }
@@ -157,6 +158,7 @@ public class LedgerHandleTests {
             return Arrays.asList(new Object[][]{
                     {null, true},
                     {getValidEntry(), false},
+                    {getInvalidEntry(), true},
             });
         }
 
@@ -187,6 +189,7 @@ public class LedgerHandleTests {
                 Long entryId=lh.appendAsync(this.data).get();
                 assertEquals(Long.valueOf(0), entryId);
                 assertEquals(0, this.data.refCnt());
+                assertFalse(this.expException);
             }catch(Exception e){
                 assertTrue(this.expException);
             }

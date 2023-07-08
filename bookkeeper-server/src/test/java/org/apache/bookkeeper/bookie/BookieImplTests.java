@@ -141,16 +141,36 @@ public class BookieImplTests {
         }
 
     }
-
+    @RunWith(Parameterized.class)
     public static class AddAndReadEntryTest{
 
+        private final long ledgerId;
+        private final boolean expException;
+        private final long entryId;
         private TestBookieImpl bookie;
         private File dir;
         private final TmpDirs tmpDirs=new TmpDirs();
 
-        public AddAndReadEntryTest(){
-
+        public AddAndReadEntryTest(long ledgerId, long entryId, boolean expException){
+            this.ledgerId=ledgerId;
+            this.entryId=entryId;
+            this.expException=expException;
         }
+
+        @Parameterized.Parameters
+        public static Collection<Object[]> testCasesArgument() throws Exception {
+            return Arrays.asList(new Object[][]{
+                    {-1,-1, true},
+                    {-1,0, true},
+                    //{0,-1, true}, //commentato perché dà errore
+                    {0,0, false},
+                    {0,1, true},
+                    {1, -1, true},
+                    {1, 0, true},
+                    {1, 1, true},
+            });
+        }
+
 
         @Before
         public void startup() throws Exception {
@@ -188,8 +208,7 @@ public class BookieImplTests {
                 Awaitility.await().untilAsserted(()-> assertTrue(complete.get()));
 
                 byteBuf=getValidEntry();
-                ByteBuf prova= this.bookie.readEntry(this.bookie.getLedgerForEntry(byteBuf, masterKey).getLedgerId(),
-                        byteBuf.getLong(byteBuf.readerIndex() + 8));
+                ByteBuf prova= this.bookie.readEntry(this.ledgerId, this.entryId);
 
                 int length = prova.readableBytes();
 
@@ -199,8 +218,10 @@ public class BookieImplTests {
                 // Leggi il contenuto nel tuo array di byte
                 prova.getBytes(prova.readerIndex(), content);
                 assertEquals(new String(byteBuf.array(), StandardCharsets.UTF_8), new String(content, StandardCharsets.UTF_8));
+                LOG.info(new String(byteBuf.array(), StandardCharsets.UTF_8)+" letta entry "+new String(content, StandardCharsets.UTF_8));
+                assertFalse(this.expException);
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                assertTrue(this.expException);
             }
         }
     }

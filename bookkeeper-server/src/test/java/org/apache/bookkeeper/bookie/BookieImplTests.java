@@ -600,7 +600,6 @@ public class BookieImplTests {
             conf.setForceReadOnlyBookie(true); //aggiunti per aumentare la percentuale su pit
             conf.setReadOnlyModeEnabled(true); //aggiunti per aumentare la percentuale su pit
             conf.setIndexDirName(new String[]{dir2.getAbsolutePath()}); //aggiunti per aumentare la percentuale su pit
-            conf.setBookieId(null);
             conf.setListeningInterface(null);
             conf.setAllowMultipleDirsUnderSameDiskPartition(false);
             conf.setUseHostNameAsBookieID(true);

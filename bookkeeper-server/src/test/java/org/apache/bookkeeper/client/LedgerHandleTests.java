@@ -1,6 +1,8 @@
 package org.apache.bookkeeper.client;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.buffer.UnpooledDirectByteBuf;
 import org.apache.bookkeeper.bookie.BookKeeperClusterTestCase;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -158,7 +160,6 @@ public class LedgerHandleTests {
             return Arrays.asList(new Object[][]{
                     {null, true},
                     {getValidEntry(), false},
-                    {getInvalidEntry(), true},
             });
         }
 

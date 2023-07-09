@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.bookkeeper.utils.DirsArrayBuilder.*;
@@ -79,17 +80,18 @@ public class BookieImplTests {
                     {getArrayWithValidExistentDir(), getArrayValidExistentDirs(), getArrayWithAValidExistentAndNotExistentDirs(), getArrayWithValidDir()[0].getAbsolutePath(), true, false, "Y", true, false},
                     {getArrayValidExistentDirs(), getArrayWithAValidExistentAndNotExistentDirs(), getArrayValidExistentAndNullDirs(), null, true, true, "NULL", false, true},
                     {getArrayWithAValidExistentAndNotExistentDirs(), getArrayValidExistentAndNullDirs(), getFileAndValidExistentDirs(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false, true},
-                    {getArrayValidExistentAndNullDirs(), getFileAndValidExistentDirs(), getArrayWithValidDir(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", false, true},
+                    {getArrayValidExistentAndNullDirs(), getFileAndValidExistentDirs(), getArrayWithValidDir(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", false, false},
                     {getFileAndValidExistentDirs(), getArrayWithValidDir(), getArrayWithValidDirs(), getArrayWithAFile()[0].getAbsolutePath(), true, false, "Y", true, false},
                     {getArrayWithValidDir(), getArrayWithValidDirs(), getArrayWithValidAndNullDirs(), getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", false, true},
                     {getArrayWithValidDirs(), getArrayWithValidAndNullDirs(), getFileAndValidDir(), null, true, true, "NULL", false, true},
                     {getArrayWithValidAndNullDirs(), getFileAndValidDir(), getArrayWithAFile(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false, true},
-                    {getFileAndValidDir(), getArrayWithAFile(), getArrayWithFiles(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", true, false},
+                    {getFileAndValidDir(), getArrayWithAFile(), getArrayWithFiles(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", false, false},
                     {getArrayWithAFile(), getArrayWithFiles(), null, getArrayWithAFile()[0].getAbsolutePath(), true, false, "Y", true, false},
                     {getArrayWithFiles(), null, new File[]{}, getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", false, true},
                     {getArrayWithFileAndNull(), getArrayWithFileAndNull(), getArrayWithFileAndNull(), "", false, true, "N", false, true},
 
-//                    {getArrayWithAFile(), getArrayWithFiles(), null, getArrayWithAFile()[0].getAbsolutePath(), false, false, "Y", true, false}, //PIT
+                    {getArrayValidExistentDirs(), getArrayValidExistentDirs(), null, "", false, true, "", true, false}, //PIT
+                    {getArrayValidExistentDirs(), getArrayValidExistentDirs(), null, "", false, false, "", false, false}, //PIT
             });
         }
 
@@ -110,29 +112,33 @@ public class BookieImplTests {
         @Test
         public void formatTest() {
             try {
-                switch (this.input) {
-                    case "Y":
-                        System.setIn(new ByteArrayInputStream("Y".getBytes()));
-                        break;
-                    case "N":
-                        System.setIn(new ByteArrayInputStream("N".getBytes()));
-                        break;
-                    case "E":
-                        System.setIn(new InputStream() {
-                            @Override
-                            public int read() throws IOException {
-                                throw new IOException("Simulated IOException");
-                            }
-                        });
-                        break;
-                    case "NULL":
-                        System.setIn(null);
-                        break;
-                    case "":
-                        break;
+                if(conf.getJournalDirs()!=null) {
+                    for (File f : conf.getJournalDirs()) {
+                        switch (this.input) {
+                            case "Y":
+                                System.setIn(new ByteArrayInputStream("Y".getBytes()));
+                                break;
+                            case "N":
+                                System.setIn(new ByteArrayInputStream("N".getBytes()));
+                                break;
+                            case "E":
+                                System.setIn(new InputStream() {
+                                    @Override
+                                    public int read() throws IOException {
+                                        throw new IOException("Simulated IOException");
+                                    }
+                                });
+                                break;
+                            case "NULL":
+                                System.setIn(null);
+                                break;
+                            case "":
+                                break;
+                        }
+                    }
                 }
                 boolean result = BookieImpl.format(conf, isInteractive, force);
-                assertEquals(result, this.expectedResult);
+                assertEquals(this.expectedResult, result);
                 assertFalse(this.expException);
             }catch(NullPointerException e) {
                 e.printStackTrace();
@@ -528,8 +534,6 @@ public class BookieImplTests {
             ServerConfiguration conf= TestBKConfiguration.newServerConfiguration();
             conf.setJournalDirName(this.dir.toString());
             conf.setLedgerDirNames(new String[]{this.dir.getAbsolutePath()});
-            conf.setForceReadOnlyBookie(true); //aggiunti per aumentare la percentuale su pit
-            conf.setReadOnlyModeEnabled(true); //aggiunti per aumentare la percentuale su pit
             conf.setIndexDirName(new String[]{this.dir2.getAbsolutePath()}); //aggiunti per aumentare la percentuale su pit
             try {
                 this.bookie= new TestBookieImpl(conf);
@@ -596,37 +600,11 @@ public class BookieImplTests {
             conf.setForceReadOnlyBookie(true); //aggiunti per aumentare la percentuale su pit
             conf.setReadOnlyModeEnabled(true); //aggiunti per aumentare la percentuale su pit
             conf.setIndexDirName(new String[]{dir2.getAbsolutePath()}); //aggiunti per aumentare la percentuale su pit
-            //conf.setBookieId(null);
+            conf.setBookieId(null);
             conf.setListeningInterface(null);
             conf.setAllowMultipleDirsUnderSameDiskPartition(false);
             conf.setUseHostNameAsBookieID(true);
             conf.setUseShortHostName(true);
-            try {
-                BookieImpl bookie = new TestBookieImpl(conf);
-                bookie.start();
-                fail("Il test deve fallire");
-            }catch(BookieException e){
-                assertTrue(true);
-            } catch (Exception e) {
-                Assert.fail("Si dve verificare BookieException");
-            }
-        }
-
-
-        @Test
-        public void constructorTest2() throws Exception {
-            File dir = this.tmpDirs.createNew("bookie-impl-test", ".tmp");
-            File dir2 = this.tmpDirs.createNew("bookie-impl-test", ".tmp"); //aggiunti per aumentare la percentuale su pit
-            ServerConfiguration conf= TestBKConfiguration.newServerConfiguration();
-            conf.setJournalDirName(dir.toString());
-            conf.setLedgerDirNames(new String[]{dir.getAbsolutePath()});
-            conf.setForceReadOnlyBookie(true); //aggiunti per aumentare la percentuale su pit
-            conf.setReadOnlyModeEnabled(true); //aggiunti per aumentare la percentuale su pit
-            conf.setIndexDirName(new String[]{dir2.getAbsolutePath()}); //aggiunti per aumentare la percentuale su pit
-            //conf.setBookieId(null);
-            conf.setListeningInterface(null);
-            conf.setAdvertisedAddress("127.0.0.1");
-            conf.setAllowMultipleDirsUnderSameDiskPartition(false);
             try {
                 BookieImpl bookie = new TestBookieImpl(conf);
                 bookie.start();

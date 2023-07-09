@@ -223,7 +223,7 @@ public class LedgerHandleTests {
                 DeleteTempFiles.deleteTempFiles();
                 lh.close();
             } catch (InterruptedException | BKException e) {
-                throw new RuntimeException(e);
+
             }
         }
 
@@ -268,7 +268,7 @@ public class LedgerHandleTests {
                     {-1, 0, true, new Object(), false, true},
                     {0, -1, false, null, false, true},
                     {0, 0, true, new Object(), false, false},
-                    {0, 0, false, null, true, true},
+                    {0, 0, false, null, true, true}, //PIT
                     {0, 1, true, null, false, true},
                     {1, 0, false, new Object(), false, true},
                     {1, 1, true, null, false, true},
@@ -339,7 +339,7 @@ public class LedgerHandleTests {
                 String data = "entry";
                 lh.addEntry(data.getBytes(StandardCharsets.UTF_8));
                 if(this.clientClosed){
-                bk.close(); //aggiunto per aumentare la coverage su PIT
+                    bk.close(); //aggiunto per aumentare la coverage su PIT
                 }
                 Enumeration<LedgerEntry> entries = lh.readEntries(this.firstEntry, this.lastEntry);
                 assertEquals(data, new String(entries.nextElement().getEntry(), StandardCharsets.UTF_8));
@@ -385,7 +385,7 @@ public class LedgerHandleTests {
 
             return Arrays.asList(new Object[][]{
                     {true, new Object(), true, false},
-                    {true, null, false, true},
+                    {true, null, false, true}, //PIT
                     {false, null, false, true},
             });
         }
@@ -614,7 +614,7 @@ public class LedgerHandleTests {
     public static class AsyncReadLastConfirmedTest extends BookKeeperClusterTestCase{
 
         private final Object ctx;
-        private final boolean useV2WireProtocol;
+        private final boolean useV2WireProtocol; //PIT
         private final boolean isClosed;
         private final boolean notNullCallback;
         private LedgerHandle lh;
@@ -633,8 +633,8 @@ public class LedgerHandleTests {
 
             return Arrays.asList(new Object[][]{
                     {true, new Object(), false, true},
-                    {false, null, true, true},
-                    {true, new Object(), false, false},
+                    {false, null, true, true},  //PIT
+                    {true, new Object(), false, false},  //PIT
                     {false, null, true, false},
             });
         }
@@ -645,7 +645,7 @@ public class LedgerHandleTests {
             ClientConfiguration bkConf = TestBKConfiguration.newClientConfiguration();
             bkConf.setMetadataServiceUri(zkUtil.getMetadataServiceUri());
             bkConf.setExplictLacInterval(1);
-            bkConf.setUseV2WireProtocol(useV2WireProtocol);
+            bkConf.setUseV2WireProtocol(useV2WireProtocol);  //PIT
             bk = new BookKeeper(bkConf);
 
             // Crea un nuovo ledger di test
@@ -676,9 +676,9 @@ public class LedgerHandleTests {
                 }
             }, null);
             Awaitility.await().untilTrue(complete);
-            if(!this.useV2WireProtocol){
-                lh.force().get();
-            }
+            if(!this.useV2WireProtocol){ //PIT
+                lh.force().get();  //PIT
+            }  //PIT
             complete.set(false);
             if(isClosed){
                 lh.close();

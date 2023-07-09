@@ -3,6 +3,8 @@ package org.apache.bookkeeper.utils;
 import org.apache.bookkeeper.test.TmpDirs;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 
 public class DirsArrayBuilder {
@@ -18,8 +20,8 @@ public class DirsArrayBuilder {
     }
 
     public static File[] getArrayWithInvalidAndExistentValidDirs() throws Exception {
-        tmpDirs.createNew("bookie-impl-test/bookie", null);
-        return new File[]{new File("/home/bookie-impl-test"), new File("bookie-impl-test/bookie")};
+        File dir=tmpDirs.createNew("bookie-impl-test/bookie", null);
+        return new File[]{new File("/home/bookie-impl-test"), dir};
     }
 
     public static File[] getArrayWithInvalidAndNotExistentValidDirs() throws Exception {
@@ -32,43 +34,45 @@ public class DirsArrayBuilder {
 
     public static File[] getFileAndInvalidDir() throws Exception {
         File dir=tmpDirs.createNew("bookie-impl-test/bookie", null);
-        File file=new File(dir.getAbsolutePath()+"file.txt");
-        boolean created = file.createNewFile();
-        if (!created){
-            throw new Exception("Errore nella creazione del file");
-        }
+        Path innerDir=Files.createTempFile(dir.toPath(), "bookie-impl", ".tmp");
+        File file=new File(innerDir.toUri());
+        file.createNewFile();
         fileList.add(file);
         return new File[]{new File("/home/bookie-impl-test"), file};
     }
 
     public static File[] getArrayWithValidExistentDir() throws Exception {
-        tmpDirs.createNew("bookie-impl-test/bookie", null);
-        return new File[]{new File("bookie-impl-test/bookie")};
+        File dir=tmpDirs.createNew("bookie-impl-test/bookie", null);
+        Path innerDir=Files.createTempFile(dir.toPath(), "bookie-impl", ".tmp");
+        new File(innerDir.toUri()).mkdir();
+        return new File[]{dir};
     }
 
     public static File[] getArrayValidExistentDirs() throws Exception {
-        tmpDirs.createNew("bookie-impl-test/bookie", null);
-        tmpDirs.createNew("bookie-impl-test/bookie2", null);
-        return new File[]{new File("bookie-impl-test/bookie"),new File("bookie-impl-test/bookie2")};
+        File dir=tmpDirs.createNew("bookie-impl-test/bookie", null);
+        File dir2=tmpDirs.createNew("bookie-impl-test/bookie2", null);
+        Path innerDir=dir.toPath().resolve(dir.toString()+ "/bookie-impl");
+        new File(innerDir.toUri()).mkdir();
+        return new File[]{dir, dir2};
     }
 
     public static File[] getArrayWithAValidExistentAndNotExistentDirs() throws Exception {
-        tmpDirs.createNew("bookie-impl-test/bookie", null);
-        return new File[]{new File("bookie-impl-test/bookie"),new File("bookie-impl-test/bookie2")};
+        File dir=tmpDirs.createNew("bookie-impl-test/bookie", null);
+        return new File[]{dir,new File("bookie-impl-test/bookie2")};
     }
 
     public static File[] getArrayValidExistentAndNullDirs() throws Exception {
-        tmpDirs.createNew("bookie-impl-test/bookie", null);
-        return new File[]{new File("bookie-impl-test/bookie"),null};
+        File dir=tmpDirs.createNew("bookie-impl-test/bookie", null);
+        Path innerDir=Files.createTempFile(dir.toPath(), "bookie-impl", ".tmp");
+        new File(innerDir.toUri()).createNewFile();
+        return new File[]{dir,null};
     }
 
     public static File[] getFileAndValidExistentDirs() throws Exception {
         File dir=tmpDirs.createNew("bookie-impl-test/bookie", null);
-        File file=new File(dir.getAbsolutePath()+"file.txt");
-        boolean created = file.createNewFile();
-        if (!created){
-            throw new Exception("Errore nella creazione del file");
-        }
+        Path innerDir=Files.createTempFile(dir.toPath(), "bookie-impl", ".tmp");
+        File file=new File(innerDir.toUri());
+        file.createNewFile();
         fileList.add(file);
         return new File[]{new File("bookie-impl-test/bookie"),file};
     }
@@ -87,50 +91,40 @@ public class DirsArrayBuilder {
 
     public static File[] getFileAndValidDir() throws Exception {
         File dir=tmpDirs.createNew("bookie-impl-test/bookie", null);
-        File file=new File(dir.getAbsolutePath()+"file.txt");
-        boolean created = file.createNewFile();
-        if (!created){
-            throw new Exception("Errore nella creazione del file");
-        }
+        Path innerDir=Files.createTempFile(dir.toPath(), "bookie-impl", ".tmp");
+        File file=new File(innerDir.toUri());
+        file.createNewFile();
         fileList.add(file);
-        return new File[]{new File("bookie-impl-test/bookie"), file};
+        return new File[]{dir, file};
     }
 
     public static File[] getArrayWithAFile() throws Exception {
         File dir=tmpDirs.createNew("bookie-impl-test/bookie", null);
-        File file=new File(dir.getAbsolutePath()+"file.txt");
-        boolean created = file.createNewFile();
-        if (!created){
-            throw new Exception("Errore nella creazione del file");
-        }
+        Path innerDir=Files.createTempFile(dir.toPath(), "bookie-impl", ".tmp");
+        File file=new File(innerDir.toUri());
+        file.createNewFile();
         fileList.add(file);
         return new File[]{file};
     }
 
     public static File[] getArrayWithFileAndNull() throws Exception {
         File dir=tmpDirs.createNew("bookie-impl-test/bookie", null);
-        File file=new File(dir.getAbsolutePath()+"file.txt");
-        boolean created = file.createNewFile();
-        if (!created){
-            throw new Exception("Errore nella creazione del file");
-        }
+        Path innerDir=Files.createTempFile(dir.toPath(), "bookie-impl", ".tmp");
+        File file=new File(innerDir.toUri());
+        file.createNewFile();
         fileList.add(file);
         return new File[]{file, null};
     }
 
     public static File[] getArrayWithFiles() throws Exception {
         File dir=tmpDirs.createNew("bookie-impl-test/bookie", null);
-        File file=new File(dir.getAbsolutePath()+"file.txt");
-        boolean created = file.createNewFile();
-        if (!created){
-            throw new Exception("Errore nella creazione del file");
-        }
+        Path innerDir=Files.createTempFile(dir.toPath(), "bookie-impl", ".tmp");
+        File file=new File(innerDir.toUri());
+        file.createNewFile();
         File dir2=tmpDirs.createNew("bookie-impl-test/bookie2", null);
-        File file2=new File(dir2.getAbsolutePath()+"file.txt");
-        created = file2.createNewFile();
-        if (!created){
-            throw new Exception("Errore nella creazione del file");
-        }
+        Path innerDir2=Files.createTempFile(dir2.toPath(), "bookie-impl", ".tmp");
+        File file2=new File(innerDir2.toUri());
+        file.createNewFile();
         fileList.add(file);
         fileList.add(file2);
         return new File[]{file, file2};

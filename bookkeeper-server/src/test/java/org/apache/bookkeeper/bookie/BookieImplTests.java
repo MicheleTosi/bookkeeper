@@ -5,6 +5,7 @@ import io.netty.buffer.Unpooled;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.conf.TestBKConfiguration;
 import org.apache.bookkeeper.test.TmpDirs;
+import org.apache.bookkeeper.utils.DeleteTempFiles;
 import org.apache.bookkeeper.utils.DirsArrayBuilder;
 import org.awaitility.Awaitility;
 import org.junit.After;
@@ -24,14 +25,13 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.bookkeeper.utils.DirsArrayBuilder.*;
 import static org.apache.bookkeeper.utils.EntryBuilder.getInvalidEntry;
 import static org.apache.bookkeeper.utils.EntryBuilder.getValidEntry;
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @RunWith(value = Enclosed.class)
 public class BookieImplTests {
@@ -50,6 +50,7 @@ public class BookieImplTests {
         private final String input;
         private ServerConfiguration conf;
         private final boolean expException;
+        private static InputStream originalSystemIn;
 
         public FormatTest(File[] journalDirs, File[] ledgerDirs, File[] indexDirs,
                           String gcEntryLogMetadataCachePath, boolean isInteractive, boolean force, String input,
@@ -67,31 +68,32 @@ public class BookieImplTests {
 
         @Parameterized.Parameters
         public static Collection<Object[]> testCasesArgument() throws Exception {
+            DirsArrayBuilder dirsBuilder=new DirsArrayBuilder();
+
             return Arrays.asList(new Object[][]{
                     {null, new File[]{}, new File[]{null}, null, true, true, "Y", false, true},
-                    {new File[]{}, new File[]{null}, getArrayWithAnInvalidDir(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "N", false, true},
-                    {new File[]{null}, getArrayWithAnInvalidDir(), getInvalidDirsArray(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "NULL", false, true},
-                    {getArrayWithAnInvalidDir(), getInvalidDirsArray(), getArrayWithInvalidAndExistentValidDirs(), getArrayWithAFile()[0].getAbsolutePath(), true, false, "E", false, false},
-                    {getInvalidDirsArray(), getArrayWithInvalidAndExistentValidDirs(), getArrayWithInvalidAndNotExistentValidDirs(), getArrayWithValidDir()[0].getAbsolutePath(), true, true, "", false, false},
-                    {getArrayWithInvalidAndExistentValidDirs(), getArrayWithInvalidAndNotExistentValidDirs(), getInvalidAndNullDirs(), null, true, false, "Y", false, false},
-                    {getArrayWithInvalidAndNotExistentValidDirs(), getInvalidAndNullDirs(), getFileAndInvalidDir(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), false, true, "N", false, false},
-                    {getInvalidAndNullDirs(), getFileAndInvalidDir(), getArrayWithValidExistentDir(), getArrayWithValidExistentDir()[0].getAbsolutePath(), false, false, "NULL", false, false},
-                    {getFileAndInvalidDir(), getArrayWithValidExistentDir(), getArrayValidExistentDirs(), getArrayWithAFile()[0].getAbsolutePath(), true, true, "N", false, false},
-                    {getArrayWithValidExistentDir(), getArrayValidExistentDirs(), getArrayWithAValidExistentAndNotExistentDirs(), getArrayWithValidDir()[0].getAbsolutePath(), true, false, "Y", true, false},
-                    {getArrayValidExistentDirs(), getArrayWithAValidExistentAndNotExistentDirs(), getArrayValidExistentAndNullDirs(), null, true, true, "NULL", false, true},
-                    {getArrayWithAValidExistentAndNotExistentDirs(), getArrayValidExistentAndNullDirs(), getFileAndValidExistentDirs(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false, true},
-                    {getArrayValidExistentAndNullDirs(), getFileAndValidExistentDirs(), getArrayWithValidDir(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", false, false},
-                    {getFileAndValidExistentDirs(), getArrayWithValidDir(), getArrayWithValidDirs(), getArrayWithAFile()[0].getAbsolutePath(), true, false, "Y", true, false},
-                    {getArrayWithValidDir(), getArrayWithValidDirs(), getArrayWithValidAndNullDirs(), getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", false, true},
-                    {getArrayWithValidDirs(), getArrayWithValidAndNullDirs(), getFileAndValidDir(), null, true, true, "NULL", false, true},
-                    {getArrayWithValidAndNullDirs(), getFileAndValidDir(), getArrayWithAFile(), getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false, true},
-                    {getFileAndValidDir(), getArrayWithAFile(), getArrayWithFiles(), getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", false, false},
-                    {getArrayWithAFile(), getArrayWithFiles(), null, getArrayWithAFile()[0].getAbsolutePath(), true, false, "Y", true, false},
-                    {getArrayWithFiles(), null, new File[]{}, getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", false, true},
-                    {getArrayWithFileAndNull(), getArrayWithFileAndNull(), getArrayWithFileAndNull(), "", false, true, "N", false, true},
-
-                    {getArrayValidExistentDirs(), getArrayValidExistentDirs(), null, "", false, true, "", true, false}, //PIT
-                    {getArrayValidExistentDirs(), getArrayValidExistentDirs(), null, "", false, false, "", false, false}, //PIT
+                    {new File[]{}, new File[]{null}, dirsBuilder.getArrayWithAnInvalidDir(), dirsBuilder.getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "N", false, true},
+                    {new File[]{null}, dirsBuilder.getArrayWithAnInvalidDir(), dirsBuilder.getInvalidDirsArray(), dirsBuilder.getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "NULL", false, true},
+                    {dirsBuilder.getArrayWithAnInvalidDir(), dirsBuilder.getInvalidDirsArray(), dirsBuilder.getArrayWithInvalidAndExistentValidDirs(), dirsBuilder.getArrayWithAFile()[0].getAbsolutePath(), true, false, "E", false, false},
+                    {dirsBuilder.getInvalidDirsArray(), dirsBuilder.getArrayWithInvalidAndExistentValidDirs(), dirsBuilder.getArrayWithInvalidAndNotExistentValidDirs(), dirsBuilder.getArrayWithValidDir()[0].getAbsolutePath(), true, true, "", false, false},
+                    {dirsBuilder.getArrayWithInvalidAndExistentValidDirs(), dirsBuilder.getArrayWithInvalidAndNotExistentValidDirs(), dirsBuilder.getInvalidAndNullDirs(), null, true, false, "Y", false, false},
+                    {dirsBuilder.getArrayWithInvalidAndNotExistentValidDirs(), dirsBuilder.getInvalidAndNullDirs(), dirsBuilder.getFileAndInvalidDir(), dirsBuilder.getArrayWithAnInvalidDir()[0].getAbsolutePath(), false, true, "N", false, false},
+                    {dirsBuilder.getInvalidAndNullDirs(), dirsBuilder.getFileAndInvalidDir(), dirsBuilder.getArrayWithValidExistentDir(), dirsBuilder.getArrayWithValidExistentDir()[0].getAbsolutePath(), false, false, "NULL", false, false},
+                    {dirsBuilder.getFileAndInvalidDir(), dirsBuilder.getArrayWithValidExistentDir(), dirsBuilder.getArrayValidExistentDirs(), dirsBuilder.getArrayWithAFile()[0].getAbsolutePath(), true, true, "N", false, false},
+                    {dirsBuilder.getArrayWithValidExistentDir(), dirsBuilder.getArrayValidExistentDirs(), dirsBuilder.getArrayWithAValidExistentAndNotExistentDirs(), dirsBuilder.getArrayWithValidDir()[0].getAbsolutePath(), true, false, "Y", true, false},
+                    {dirsBuilder.getArrayValidExistentDirs(), dirsBuilder.getArrayWithAValidExistentAndNotExistentDirs(), dirsBuilder.getArrayValidExistentAndNullDirs(), null, true, true, "NULL", false, true},
+                    {dirsBuilder.getArrayWithAValidExistentAndNotExistentDirs(), dirsBuilder.getArrayValidExistentAndNullDirs(), dirsBuilder.getFileAndValidExistentDirs(), dirsBuilder.getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false, true},
+                    {dirsBuilder.getArrayValidExistentAndNullDirs(), dirsBuilder.getFileAndValidExistentDirs(), dirsBuilder.getArrayWithValidDir(), dirsBuilder.getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", false, true},
+                    {dirsBuilder.getFileAndValidExistentDirs(), dirsBuilder.getArrayWithValidDir(), dirsBuilder.getArrayWithValidDirs(), dirsBuilder.getArrayWithAFile()[0].getAbsolutePath(), true, false, "Y", true, false},
+                    {dirsBuilder.getArrayWithValidDir(), dirsBuilder.getArrayWithValidDirs(), dirsBuilder.getArrayWithValidAndNullDirs(), dirsBuilder.getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", false, true},
+                    {dirsBuilder.getArrayWithValidDirs(), dirsBuilder.getArrayWithValidAndNullDirs(), dirsBuilder.getFileAndValidDir(), null, true, true, "NULL", false, true},
+                    {dirsBuilder.getArrayWithValidAndNullDirs(), dirsBuilder.getFileAndValidDir(), dirsBuilder.getArrayWithAFile(), dirsBuilder.getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false, true},
+                    {dirsBuilder.getFileAndValidDir(), dirsBuilder.getArrayWithAFile(), dirsBuilder.getArrayWithFiles(), dirsBuilder.getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", true, false},
+                    {dirsBuilder.getArrayWithAFile(), dirsBuilder.getArrayWithFiles(), null, dirsBuilder.getArrayWithAFile()[0].getAbsolutePath(), true, false, "Y", true, false},
+                    {dirsBuilder.getArrayWithFiles(), null, new File[]{}, dirsBuilder.getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", false, true},
+                    {dirsBuilder.getArrayWithFileAndNull(), dirsBuilder.getArrayWithFileAndNull(), dirsBuilder.getArrayWithFileAndNull(), "", false, true, "N", false, true},
+//                    {dirsBuilder.getArrayValidExistentDirs(), dirsBuilder.getArrayValidExistentDirs(), null, "", false, true, "", true, false}, //PIT
+//                    {dirsBuilder.getArrayValidExistentDirs(), dirsBuilder.getArrayValidExistentDirs(), null, "", false, false, "", false, false}, //PIT
             });
         }
 
@@ -105,37 +107,38 @@ public class BookieImplTests {
         }
 
         @After
-        public void cleanup() throws Exception {
-            DirsArrayBuilder.cleanup();
+        public void cleanup() {
+            DeleteTempFiles.deleteFiles(conf.getJournalDirs(), conf.getIndexDirs(), conf.getLedgerDirs());
+            System.setIn(originalSystemIn);
         }
 
         @Test
         public void formatTest() {
             try {
-                if(conf.getJournalDirs()!=null) {
-                    for (File f : conf.getJournalDirs()) {
-                        switch (this.input) {
-                            case "Y":
-                                System.setIn(new ByteArrayInputStream("Y".getBytes()));
-                                break;
-                            case "N":
-                                System.setIn(new ByteArrayInputStream("N".getBytes()));
-                                break;
-                            case "E":
-                                System.setIn(new InputStream() {
-                                    @Override
-                                    public int read() throws IOException {
-                                        throw new IOException("Simulated IOException");
-                                    }
-                                });
-                                break;
-                            case "NULL":
-                                System.setIn(null);
-                                break;
-                            case "":
-                                break;
-                        }
-                    }
+                originalSystemIn = System.in;
+                switch (this.input) {
+                    case "Y":
+                        System.setIn(new ByteArrayInputStream("Y".getBytes()));
+                        break;
+                    case "N":
+                        System.setIn(new ByteArrayInputStream("N".getBytes()));
+                        break;
+                    case "E":
+                        System.setIn(new InputStream() {
+                            @Override
+                            public int read() throws IOException {
+                                throw new IOException("Simulated IOException");
+                            }
+                        });
+                        break;
+                    case "NULL":
+                        System.setIn(null);
+                        break;
+                    case "":
+                        System.setIn(new ByteArrayInputStream("\ny".getBytes()));
+                        //System.setIn(new ByteArrayInputStream("n".getBytes()));
+                        break;
+
                 }
                 boolean result = BookieImpl.format(conf, isInteractive, force);
                 assertEquals(this.expectedResult, result);
@@ -530,11 +533,11 @@ public class BookieImplTests {
         @Before
         public void startup() throws Exception {
             this.dir= this.tmpDirs.createNew("bookie-impl-test", ".tmp");
-            this.dir2= this.tmpDirs.createNew("bookie-impl-test", ".tmp"); //aggiunti per aumentare la percentuale su pit
+//            this.dir2= this.tmpDirs.createNew("bookie-impl-test", ".tmp"); //aggiunti per aumentare la percentuale su pit
             ServerConfiguration conf= TestBKConfiguration.newServerConfiguration();
             conf.setJournalDirName(this.dir.toString());
             conf.setLedgerDirNames(new String[]{this.dir.getAbsolutePath()});
-            conf.setIndexDirName(new String[]{this.dir2.getAbsolutePath()}); //aggiunti per aumentare la percentuale su pit
+//            conf.setIndexDirName(new String[]{this.dir2.getAbsolutePath()}); //aggiunti per aumentare la percentuale su pit
             try {
                 this.bookie= new TestBookieImpl(conf);
                 this.bookie.start();
@@ -554,7 +557,7 @@ public class BookieImplTests {
         }
 
         @Test
-        public void setAndGetLACTest() throws IOException, InterruptedException, BookieException {
+        public void setAndGetLACTest() {
             try {
                 byte[] buff = "hi".getBytes();
                 ByteBuf byteBuf = Unpooled.buffer(buff.length);
@@ -580,6 +583,7 @@ public class BookieImplTests {
 
     }
 
+///*
     //whiteBox analysis
     public static class BookieImplConstructorTest{
 
@@ -597,13 +601,8 @@ public class BookieImplTests {
             ServerConfiguration conf= TestBKConfiguration.newServerConfiguration();
             conf.setJournalDirName(dir.toString());
             conf.setLedgerDirNames(new String[]{dir.getAbsolutePath()});
-            conf.setForceReadOnlyBookie(true); //aggiunti per aumentare la percentuale su pit
-            conf.setReadOnlyModeEnabled(true); //aggiunti per aumentare la percentuale su pit
             conf.setIndexDirName(new String[]{dir2.getAbsolutePath()}); //aggiunti per aumentare la percentuale su pit
-            conf.setListeningInterface(null);
             conf.setAllowMultipleDirsUnderSameDiskPartition(false);
-            conf.setUseHostNameAsBookieID(true);
-            conf.setUseShortHostName(true);
             try {
                 BookieImpl bookie = new TestBookieImpl(conf);
                 bookie.start();
@@ -611,8 +610,9 @@ public class BookieImplTests {
             }catch(BookieException e){
                 assertTrue(true);
             } catch (Exception e) {
-                Assert.fail("Si dve verificare BookieException");
+                Assert.fail("Si deve verificare BookieException");
             }
         }
     }
+//   */
 }

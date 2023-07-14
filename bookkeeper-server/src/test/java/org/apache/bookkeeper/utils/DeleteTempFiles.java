@@ -1,5 +1,7 @@
 package org.apache.bookkeeper.utils;
 
+import org.apache.bookkeeper.util.IOUtils;
+
 import java.io.File;
 import java.io.IOException;
 
@@ -43,5 +45,27 @@ public class DeleteTempFiles {
             }
         }
         directory.delete();
+    }
+
+    public static void deleteFiles(File[]... fileArrays) {
+        for (File[] files : fileArrays) {
+            deleteFilesRecursive(files);
+        }
+    }
+
+    private static void deleteFilesRecursive(File[] files) {
+        if (files == null) {
+            return;
+        }
+
+        for (File file : files) {
+            if(file!=null && file.exists()){
+                if(file.isDirectory()){
+                    deleteDirectory(file);
+                }else{
+                    file.delete();
+                }
+            }
+        }
     }
 }

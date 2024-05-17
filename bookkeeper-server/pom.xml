@@ -230,7 +230,7 @@
                 <artifactItem>
                   <groupId>br.usp.each.saeg</groupId>
                   <artifactId>ba-dua</artifactId>
-                  <version>0.6.0</version>
+                  <version>0.4.0</version>
                   <type>zip</type>
                   <outputDirectory>${project.build.directory}</outputDirectory>
                 </artifactItem>
@@ -388,12 +388,12 @@
         <activeByDefault>false</activeByDefault>
       </activation>
       <properties>
-        <BADUACLI>./target/lib/ba-dua-cli-0.6.0-all.jar</BADUACLI>
+        <BADUACLI>./target/lib/ba-dua-cli-0.4.0-all.jar</BADUACLI>
         <BADUASER>./target/badua.ser</BADUASER>
         <CLASSES>./target/classes</CLASSES>
         <BADUAXML>./target/badua.xml</BADUAXML>
         <argLine>
-          -javaagent:${project.build.directory}/lib/ba-dua-agent-rt-0.6.0-all.jar
+          -javaagent:${project.build.directory}/lib/ba-dua-agent-rt-0.4.0-all.jar
           -Doutput.file=target/badua.ser
         </argLine>
       </properties>
@@ -412,7 +412,7 @@
             </executions>
                 <configuration>
                   <argLine>
-                    -javaagent:${project.build.directory}/lib/ba-dua-agent-rt-0.6.0-all.jar
+                    -javaagent:${project.build.directory}/lib/ba-dua-agent-rt-0.4.0-all.jar
                     -Doutput.file=target/badua.ser
                   </argLine>
                 </configuration>

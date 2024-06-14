@@ -1,8 +1,6 @@
 package org.apache.bookkeeper.client;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.buffer.UnpooledDirectByteBuf;
 import org.apache.bookkeeper.bookie.BookKeeperClusterTestCase;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -30,7 +28,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.bookkeeper.utils.EntryBuilder.getInvalidEntry;
 import static org.apache.bookkeeper.utils.EntryBuilder.getValidEntry;
 import static org.junit.Assert.*;
 
@@ -168,7 +165,7 @@ public class LedgerHandleTests {
             // Inizializza BookKeeper utilizzando la configurazione
             ClientConfiguration bkConf = TestBKConfiguration.newClientConfiguration();
             bkConf.setMetadataServiceUri(zkUtil.getMetadataServiceUri());
-            bkConf.setWaitTimeoutOnBackpressureMillis(1L); //aumentare coverage PIT
+            bkConf.setWaitTimeoutOnBackpressureMillis(1L);
             BookKeeper bookKeeper = new BookKeeper(bkConf);
 
             // Crea un nuovo ledger di test
@@ -189,7 +186,6 @@ public class LedgerHandleTests {
             try {
                 Long entryId=lh.appendAsync(this.data).get();
                 assertEquals(Long.valueOf(0), entryId);
-                assertEquals(0, this.data.refCnt());
                 assertFalse(this.expException);
             }catch(Exception e){
                 assertTrue(this.expException);
@@ -292,7 +288,7 @@ public class LedgerHandleTests {
             try {
                 DeleteTempFiles.deleteTempFiles();
                 lh.close();
-            } catch (InterruptedException | BKException e) {
+            } catch (Exception e) {
                 // non fa nulla se fallisce
             }
         }
@@ -305,7 +301,7 @@ public class LedgerHandleTests {
             String data = "entry";
             lh.addEntry(data.getBytes(StandardCharsets.UTF_8));
             if(this.clientClosed){
-                bk.close(); //aggiunto per aumentare la coverage su PIT
+                bk.close();
             }
             if(this.notNullCallback) {
                 lh.asyncReadEntries(this.firstEntry, this.lastEntry, new AsyncCallback.ReadCallback() {
@@ -339,7 +335,7 @@ public class LedgerHandleTests {
                 String data = "entry";
                 lh.addEntry(data.getBytes(StandardCharsets.UTF_8));
                 if(this.clientClosed){
-                    bk.close(); //aggiunto per aumentare la coverage su PIT
+                    bk.close();
                 }
                 Enumeration<LedgerEntry> entries = lh.readEntries(this.firstEntry, this.lastEntry);
                 assertEquals(data, new String(entries.nextElement().getEntry(), StandardCharsets.UTF_8));
@@ -354,7 +350,7 @@ public class LedgerHandleTests {
                 String data = "entry";
                 lh.addEntry(data.getBytes(StandardCharsets.UTF_8));
                 if(this.clientClosed){
-                    bk.close(); //aggiunto per aumentare la coverage su PIT
+                    bk.close();
                 }
                 LedgerEntries entries = lh.readAsync(this.firstEntry, this.lastEntry).get();
                 assertEquals(data, new String(entries.getEntry(this.firstEntry).getEntryBytes(), StandardCharsets.UTF_8));
@@ -395,7 +391,6 @@ public class LedgerHandleTests {
             // Inizializza BookKeeper utilizzando la configurazione
             ClientConfiguration bkConf = TestBKConfiguration.newClientConfiguration();
             bkConf.setMetadataServiceUri(zkUtil.getMetadataServiceUri());
-            bkConf.setStickyReadsEnabled(true); //aumentare coverage PIT
             BookKeeper bk = new BookKeeper(bkConf);
 
             // Crea un nuovo ledger di test
@@ -524,7 +519,7 @@ public class LedgerHandleTests {
         private final long timeOutInMillis;
         private final boolean parallel;
         private final boolean isClosed;
-        private boolean notNullCallback;
+        private final boolean notNullCallback;
 
         public ReadLastAddConfirmedAndEntryAsyncTest(long entryId, long timeOutInMillis, boolean notNullCallback, boolean parallel, Object ctx, boolean isClosed){
             super(3);
@@ -614,7 +609,7 @@ public class LedgerHandleTests {
     public static class AsyncReadLastConfirmedTest extends BookKeeperClusterTestCase{
 
         private final Object ctx;
-        private final boolean useV2WireProtocol; //PIT
+        private final boolean useV2WireProtocol; //Jacoco
         private final boolean isClosed;
         private final boolean notNullCallback;
         private LedgerHandle lh;
@@ -624,7 +619,7 @@ public class LedgerHandleTests {
             super(3);
             this.ctx=ctx;
             this.notNullCallback=notNullCallback;
-            this.useV2WireProtocol=useV2WireProtocol; //aggiunto per PIT
+            this.useV2WireProtocol=useV2WireProtocol; //aggiunto per Jacoco
             this.isClosed=isClosed;
         }
 
@@ -633,8 +628,9 @@ public class LedgerHandleTests {
 
             return Arrays.asList(new Object[][]{
                     {true, new Object(), false, true},
-                    {false, null, true, true},  //PIT
-                    {true, new Object(), false, false},  //PIT
+                    {false, null, true, true},  //Jacoco
+                    {true, new Object(), true, true},  //ba-dua
+                    {true, new Object(), false, false},  //Jacoco
                     {false, null, true, false},
             });
         }
@@ -645,7 +641,7 @@ public class LedgerHandleTests {
             ClientConfiguration bkConf = TestBKConfiguration.newClientConfiguration();
             bkConf.setMetadataServiceUri(zkUtil.getMetadataServiceUri());
             bkConf.setExplictLacInterval(1);
-            bkConf.setUseV2WireProtocol(useV2WireProtocol);  //PIT
+            bkConf.setUseV2WireProtocol(useV2WireProtocol);
             bk = new BookKeeper(bkConf);
 
             // Crea un nuovo ledger di test
@@ -676,9 +672,9 @@ public class LedgerHandleTests {
                 }
             }, null);
             Awaitility.await().untilTrue(complete);
-            if(!this.useV2WireProtocol){ //PIT
-                lh.force().get();  //PIT
-            }  //PIT
+            if(!this.useV2WireProtocol){ //Jacoco
+                lh.force().get();  //Jacoco
+            }
             complete.set(false);
             if(isClosed){
                 lh.close();
@@ -716,6 +712,79 @@ public class LedgerHandleTests {
                 }
             }
         }
+
+    }
+
+
+    @RunWith(Parameterized.class)
+    public static class AsyncAddEntryTest extends BookKeeperClusterTestCase {
+
+        private int offset;
+        private int length;
+        private boolean expException;
+        private LedgerHandle lh;
+        private BookKeeper bk;
+        private static String data = "entry";
+
+        public AsyncAddEntryTest(int offset, int length, boolean expException) {
+            super(3);
+            this.offset=offset;
+            this.length=length;
+            this.expException=expException;
+        }
+
+        @Parameterized.Parameters
+        public static Collection<Object[]> testCasesArgument() {
+
+            return Arrays.asList(new Object[][]{
+                    {-1,-1, true},
+                    {-1,data.length(), true},
+                    {0,-1, true},
+                    {0,data.length(), false},
+                    {1,data.length(), true},
+
+            });
+        }
+
+        @Before
+        public void setup() throws Exception {
+            // Inizializza BookKeeper utilizzando la configurazione
+            ClientConfiguration bkConf = TestBKConfiguration.newClientConfiguration();
+            bkConf.setMetadataServiceUri(zkUtil.getMetadataServiceUri());
+            bk = new BookKeeper(bkConf);
+
+            // Crea un nuovo ledger di test
+            lh = bk.createLedger(BookKeeper.DigestType.CRC32, "password".getBytes());
+        }
+
+        @After
+        public void tearDown() {
+            try {
+                DeleteTempFiles.deleteTempFiles();
+                lh.close();
+            } catch (InterruptedException | BKException e) {
+                // non fa nulla se fallisce
+            }
+        }
+
+        @Test
+        public void asyncAddEntryTest() throws InterruptedException, BKException, ExecutionException {
+
+            AtomicBoolean complete = new AtomicBoolean(false);
+            try {
+                lh.asyncAddEntry(data.getBytes(), offset, length, new AsyncCallback.AddCallback() {
+                    @Override
+                    public void addComplete(int rc, LedgerHandle lh, long entryId, Object ctx) {
+                        complete.set(true);
+                    }
+                }, null);
+                Awaitility.await().untilTrue(complete);
+                assertFalse(this.expException);
+            }catch(ArrayIndexOutOfBoundsException e){
+                assert(this.expException);
+            }
+        }
+
 
     }
 

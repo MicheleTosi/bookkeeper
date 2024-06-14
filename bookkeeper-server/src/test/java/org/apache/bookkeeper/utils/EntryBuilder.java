@@ -17,10 +17,7 @@ public class EntryBuilder {
     }
 
     public static ByteBuf getInvalidEntry(){
-        ByteBuf invalidEntry= Unpooled.buffer(3*Long.BYTES+buff.length);
-        invalidEntry.writeLong(-1L);
-        invalidEntry.writeLong(-1L);
-        invalidEntry.writeLong(-1L);
+        ByteBuf invalidEntry= Unpooled.buffer(buff.length);
         invalidEntry.writeBytes(buff);
         return invalidEntry;
     }

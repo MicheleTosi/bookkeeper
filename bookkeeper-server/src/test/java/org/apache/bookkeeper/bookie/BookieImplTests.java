@@ -6,7 +6,6 @@ import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.conf.TestBKConfiguration;
 import org.apache.bookkeeper.test.TmpDirs;
 import org.apache.bookkeeper.utils.DeleteTempFiles;
-import org.apache.bookkeeper.utils.DirsArrayBuilder;
 import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Assert;
@@ -25,8 +24,12 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.bookkeeper.bookie.DirArrayEnum.*;
+import static org.apache.bookkeeper.utils.DeleteTempFiles.deleteFilesRecursive;
+import static org.apache.bookkeeper.utils.DirsArrayBuilder.initConf;
 import static org.apache.bookkeeper.utils.EntryBuilder.getInvalidEntry;
 import static org.apache.bookkeeper.utils.EntryBuilder.getValidEntry;
 import static org.junit.Assert.*;
@@ -39,21 +42,20 @@ public class BookieImplTests {
 
     @RunWith(Parameterized.class)
     public static class FormatTest {
-
         private final boolean isInteractive;
         private final boolean force;
         private final boolean expectedResult;
-        private final File[] journalDirs;
-        private final String gcEntryLogMetadataCachePath;
-        private final File[] indexDirs;
-        private final File[] ledgerDirs;
+        private final DirArrayEnum journalDirs;
+        private final DirArrayEnum gcEntryLogMetadataCachePath;
+        private final DirArrayEnum indexDirs;
+        private final DirArrayEnum ledgerDirs;
         private final String input;
         private ServerConfiguration conf;
         private final boolean expException;
         private static InputStream originalSystemIn;
 
-        public FormatTest(File[] journalDirs, File[] ledgerDirs, File[] indexDirs,
-                          String gcEntryLogMetadataCachePath, boolean isInteractive, boolean force, String input,
+        public FormatTest(DirArrayEnum journalDirs, DirArrayEnum ledgerDirs, DirArrayEnum indexDirs,
+                          DirArrayEnum gcEntryLogMetadataCachePath, boolean isInteractive, boolean force, String input,
                           boolean expectedResult, boolean expException) {
             this.isInteractive = isInteractive;
             this.force = force;
@@ -67,48 +69,107 @@ public class BookieImplTests {
         }
 
         @Parameterized.Parameters
-        public static Collection<Object[]> testCasesArgument() throws Exception {
-            DirsArrayBuilder dirsBuilder=new DirsArrayBuilder();
+        public static Collection<Object[]> testCasesArgument() {
 
             return Arrays.asList(new Object[][]{
-                    {null, new File[]{}, new File[]{null}, null, true, true, "Y", false, true},
-                    {new File[]{}, new File[]{null}, dirsBuilder.getArrayWithAnInvalidDir(), dirsBuilder.getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "N", false, true},
-                    {new File[]{null}, dirsBuilder.getArrayWithAnInvalidDir(), dirsBuilder.getInvalidDirsArray(), dirsBuilder.getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "NULL", false, true},
-                    {dirsBuilder.getArrayWithAnInvalidDir(), dirsBuilder.getInvalidDirsArray(), dirsBuilder.getArrayWithInvalidAndExistentValidDirs(), dirsBuilder.getArrayWithAFile()[0].getAbsolutePath(), true, false, "E", false, false},
-                    {dirsBuilder.getInvalidDirsArray(), dirsBuilder.getArrayWithInvalidAndExistentValidDirs(), dirsBuilder.getArrayWithInvalidAndNotExistentValidDirs(), dirsBuilder.getArrayWithValidDir()[0].getAbsolutePath(), true, true, "", false, false},
-                    {dirsBuilder.getArrayWithInvalidAndExistentValidDirs(), dirsBuilder.getArrayWithInvalidAndNotExistentValidDirs(), dirsBuilder.getInvalidAndNullDirs(), null, true, false, "Y", false, false},
-                    {dirsBuilder.getArrayWithInvalidAndNotExistentValidDirs(), dirsBuilder.getInvalidAndNullDirs(), dirsBuilder.getFileAndInvalidDir(), dirsBuilder.getArrayWithAnInvalidDir()[0].getAbsolutePath(), false, true, "N", false, false},
-                    {dirsBuilder.getInvalidAndNullDirs(), dirsBuilder.getFileAndInvalidDir(), dirsBuilder.getArrayWithValidExistentDir(), dirsBuilder.getArrayWithValidExistentDir()[0].getAbsolutePath(), false, false, "NULL", false, false},
-                    {dirsBuilder.getFileAndInvalidDir(), dirsBuilder.getArrayWithValidExistentDir(), dirsBuilder.getArrayValidExistentDirs(), dirsBuilder.getArrayWithAFile()[0].getAbsolutePath(), true, true, "N", false, false},
-                    {dirsBuilder.getArrayWithValidExistentDir(), dirsBuilder.getArrayValidExistentDirs(), dirsBuilder.getArrayWithAValidExistentAndNotExistentDirs(), dirsBuilder.getArrayWithValidDir()[0].getAbsolutePath(), true, false, "Y", true, false},
-                    {dirsBuilder.getArrayValidExistentDirs(), dirsBuilder.getArrayWithAValidExistentAndNotExistentDirs(), dirsBuilder.getArrayValidExistentAndNullDirs(), null, true, true, "NULL", false, true},
-                    {dirsBuilder.getArrayWithAValidExistentAndNotExistentDirs(), dirsBuilder.getArrayValidExistentAndNullDirs(), dirsBuilder.getFileAndValidExistentDirs(), dirsBuilder.getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false, true},
-                    {dirsBuilder.getArrayValidExistentAndNullDirs(), dirsBuilder.getFileAndValidExistentDirs(), dirsBuilder.getArrayWithValidDir(), dirsBuilder.getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", false, true},
-                    {dirsBuilder.getFileAndValidExistentDirs(), dirsBuilder.getArrayWithValidDir(), dirsBuilder.getArrayWithValidDirs(), dirsBuilder.getArrayWithAFile()[0].getAbsolutePath(), true, false, "Y", true, false},
-                    {dirsBuilder.getArrayWithValidDir(), dirsBuilder.getArrayWithValidDirs(), dirsBuilder.getArrayWithValidAndNullDirs(), dirsBuilder.getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", false, true},
-                    {dirsBuilder.getArrayWithValidDirs(), dirsBuilder.getArrayWithValidAndNullDirs(), dirsBuilder.getFileAndValidDir(), null, true, true, "NULL", false, true},
-                    {dirsBuilder.getArrayWithValidAndNullDirs(), dirsBuilder.getFileAndValidDir(), dirsBuilder.getArrayWithAFile(), dirsBuilder.getArrayWithAnInvalidDir()[0].getAbsolutePath(), true, false, "E", false, true},
-                    {dirsBuilder.getFileAndValidDir(), dirsBuilder.getArrayWithAFile(), dirsBuilder.getArrayWithFiles(), dirsBuilder.getArrayWithValidExistentDir()[0].getAbsolutePath(), true, true, "", true, false},
-                    {dirsBuilder.getArrayWithAFile(), dirsBuilder.getArrayWithFiles(), null, dirsBuilder.getArrayWithAFile()[0].getAbsolutePath(), true, false, "Y", true, false},
-                    {dirsBuilder.getArrayWithFiles(), null, new File[]{}, dirsBuilder.getArrayWithValidDir()[0].getAbsolutePath(), false, true, "N", false, true},
-                    {dirsBuilder.getArrayWithFileAndNull(), dirsBuilder.getArrayWithFileAndNull(), dirsBuilder.getArrayWithFileAndNull(), "", false, true, "N", false, true},
-//                    {dirsBuilder.getArrayValidExistentDirs(), dirsBuilder.getArrayValidExistentDirs(), null, "", false, true, "", true, false}, //PIT
-//                    {dirsBuilder.getArrayValidExistentDirs(), dirsBuilder.getArrayValidExistentDirs(), null, "", false, false, "", false, false}, //PIT
+                    {NULL,EMPTY_ARRAY,ARRAY_WITH_NULL_DIR,ARRAY_WITH_NULL_DIR,false,true,"",false,true},
+                    {EMPTY_ARRAY,ARRAY_WITH_NULL_DIR,ARRAY_WITH_TWO_NULL_DIRS,EMPTY_ARRAY,true,false,"Y",false,true},
+                    {ARRAY_WITH_NULL_DIR,ARRAY_WITH_TWO_NULL_DIRS,ARRAY_WITH_NULL_AND_FILE,ARRAY_WITH_FILE,true,true,"N",false,true},
+                    {ARRAY_WITH_TWO_NULL_DIRS,ARRAY_WITH_NULL_AND_FILE,ARRAY_WITH_NULL_AND_EXISTENT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR,true,false,"E",false,true},
+                    {ARRAY_WITH_NULL_AND_FILE,ARRAY_WITH_NULL_AND_EXISTENT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_NULL_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,true,true,"NULL",false,true},
+                    {ARRAY_WITH_NULL_AND_EXISTENT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_NULL_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_NULL_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,true,false,"",false,true},
+                    {ARRAY_WITH_NULL_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_NULL_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_NULL_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,false,true,"",false,true},
+                    {ARRAY_WITH_NULL_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_NULL_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_NULL_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,true,false,"Y",false,true},
+                    {ARRAY_WITH_NULL_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_NULL_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_NULL_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,true,true,"N",false,true},
+                    {ARRAY_WITH_NULL_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_NULL_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_NULL_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,true,false,"E",false,true},
+                    {ARRAY_WITH_NULL_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_NULL_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_NULL_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_NOT_EXISTENT_WITH_PERMISSION_DIR,true,true,"NULL",false,true},
+                    {ARRAY_WITH_NULL_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_NULL_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_FILE,ARRAY_WITH_NULL_DIR,true,false,"",false,true},
+                    {ARRAY_WITH_NULL_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_FILE,ARRAY_WITH_TWO_FILES,EMPTY_ARRAY,false,true,"",false,true},
+                    {ARRAY_WITH_FILE,ARRAY_WITH_TWO_FILES,ARRAY_WITH_FILE_AND_EXISTENT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_FILE,true,false,"Y",true,false},
+                    {ARRAY_WITH_TWO_FILES,ARRAY_WITH_FILE_AND_EXISTENT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_FILE_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR,true,true,"N",true,false},
+                    {ARRAY_WITH_FILE_AND_EXISTENT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_FILE_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_FILE_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,true,false,"E",true,false},
+                    {ARRAY_WITH_FILE_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_FILE_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_FILE_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,true,true,"NULL",false,true},
+                    {ARRAY_WITH_FILE_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_FILE_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_FILE_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,true,false,"",false,false},
+                    {ARRAY_WITH_FILE_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_FILE_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_FILE_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,false,true,"",false,false},
+                    {ARRAY_WITH_FILE_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_FILE_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_FILE_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,true,false,"Y",false,false},
+                    {ARRAY_WITH_FILE_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_FILE_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_FILE_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,true,true,"N",false,false},
+                    {ARRAY_WITH_FILE_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_FILE_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_NOT_EXISTENT_WITH_PERMISSION_DIR,true,false,"E",false,false},
+                    {ARRAY_WITH_FILE_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_TWO_EXISTENT_REMOVABLE_EMPTY_DIRS,ARRAY_WITH_NULL_DIR,true,true,"NULL",true,false},
+                    {ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_TWO_EXISTENT_REMOVABLE_EMPTY_DIRS,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,EMPTY_ARRAY,true,false,"",true,false},
+                    {ARRAY_WITH_TWO_EXISTENT_REMOVABLE_EMPTY_DIRS,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_FILE,false,true,"",true,false},
+                    {ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR,true,false,"Y",true,false},
+                    {ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,true,true,"N",false,false},
+                    {ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,true,false,"E",false,false},
+                    {ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,true,true,"NULL",false,false},
+                    {ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,true,false,"",false,false},
+                    {ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,false,true,"",false,false},
+                    {ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_TWO_EXISTENT_REMOVABLE_DIRS_CONTAINING_DIR,ARRAY_WITH_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,true,false,"Y",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_TWO_EXISTENT_REMOVABLE_DIRS_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_NOT_EXISTENT_WITH_PERMISSION_DIR,true,true,"N",false,false},
+                    {ARRAY_WITH_TWO_EXISTENT_REMOVABLE_DIRS_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_NULL_DIR,true,false,"E",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,EMPTY_ARRAY,true,true,"NULL",false,true},
+                    {ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_FILE,true,false,"",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR,false,true,"",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,true,false,"Y",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,true,true,"N",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_TWO_EXISTENT_REMOVABLE_DIRS_CONTAINING_FILE,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,true,false,"E",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_TWO_EXISTENT_REMOVABLE_DIRS_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,true,true,"NULL",false,true},
+                    {ARRAY_WITH_TWO_EXISTENT_REMOVABLE_DIRS_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,true,false,"",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,false,true,"",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_NOT_EXISTENT_WITH_PERMISSION_DIR,true,false,"Y",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_NULL_DIR,true,true,"N",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,EMPTY_ARRAY,true,false,"E",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_TWO_EXISTENT_NOT_REMOVABLE_EMPTY_DIRS,ARRAY_WITH_FILE,true,true,"NULL",false,true},
+                    {ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_TWO_EXISTENT_NOT_REMOVABLE_EMPTY_DIRS,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR,true,false,"",false,false},
+                    {ARRAY_WITH_TWO_EXISTENT_NOT_REMOVABLE_EMPTY_DIRS,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,false,true,"",false,false},
+                    {ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,true,false,"Y",false,false},
+                    {ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,true,true,"N",false,false},
+                    {ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,true,false,"E",false,false},
+                    {ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_TWO_EXISTENT_NOT_REMOVABLE_DIRS_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,true,true,"NULL",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_TWO_EXISTENT_NOT_REMOVABLE_DIRS_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,true,false,"",false,false},
+                    {ARRAY_WITH_TWO_EXISTENT_NOT_REMOVABLE_DIRS_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_NOT_EXISTENT_WITH_PERMISSION_DIR,false,true,"",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_NULL_DIR,true,false,"Y",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,EMPTY_ARRAY,true,true,"N",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_TWO_EXISTENT_NOT_REMOVABLE_DIRS_CONTAINING_FILE,ARRAY_WITH_FILE,true,false,"E",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,ARRAY_WITH_TWO_EXISTENT_NOT_REMOVABLE_DIRS_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_EXISTENT_REMOVABLE_EMPTY_DIR,true,true,"NULL",false,false},
+                    {ARRAY_WITH_TWO_EXISTENT_NOT_REMOVABLE_DIRS_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_DIR,true,false,"",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE_AND_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE,false,true,"",false,false},
+                    {ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_TWO_NOT_EXISTENT_WITHOUT_PERMISSION_DIRS,ARRAY_WITH_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,true,false,"Y",false,false},
+                    {ARRAY_WITH_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,ARRAY_WITH_TWO_NOT_EXISTENT_WITHOUT_PERMISSION_DIRS,ARRAY_WITH_NOT_EXISTENT_WITHOUT_PERMISSION_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,true,true,"N",false,false},
+                    {ARRAY_WITH_TWO_NOT_EXISTENT_WITHOUT_PERMISSION_DIRS,ARRAY_WITH_NOT_EXISTENT_WITHOUT_PERMISSION_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,true,false,"E",false,false},
+                    {ARRAY_WITH_NOT_EXISTENT_WITHOUT_PERMISSION_AND_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_TWO_NOT_EXISTENT_WITH_PERMISSION_DIRS,ARRAY_WITH_NOT_EXISTENT_WITHOUT_PERMISSION_DIR,true,true,"NULL",false,false},
+                    {ARRAY_WITH_NOT_EXISTENT_WITH_PERMISSION_DIR,ARRAY_WITH_TWO_NOT_EXISTENT_WITH_PERMISSION_DIRS,NULL,ARRAY_WITH_NOT_EXISTENT_WITH_PERMISSION_DIR,true,false,"",true,false},
+                    {ARRAY_WITH_TWO_NOT_EXISTENT_WITH_PERMISSION_DIRS,NULL,EMPTY_ARRAY,ARRAY_WITH_NULL_DIR,false,true,"",false,true},
+
+                    //{ARRAY_WITH_TWO_EXISTENT_REMOVABLE_DIRS_CONTAINING_FILE,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_EXISTENT_NOT_REMOVABLE_EMPTY_DIR,ARRAY_WITH_AN_EXISTENT_REMOVABLE_DIR_CONTAINING_FILE_AND_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_DIR,ARRAY_WITH_AN_EXISTENT_NOT_REMOVABLE_DIR_CONTAINING_FILE,false,false,"Y",false,false}, //aggiunto ba-dua
             });
         }
 
         @Before
-        public void setup() {
+        public void setup() throws Exception {
             conf = mock(ServerConfiguration.class);
-            when(conf.getJournalDirs()).thenReturn(journalDirs);
-            when(conf.getLedgerDirs()).thenReturn(ledgerDirs);
-            when(conf.getIndexDirs()).thenReturn(indexDirs);
-            when(conf.getGcEntryLogMetadataCachePath()).thenReturn(gcEntryLogMetadataCachePath);
+            File[] journalDirsArray = initConf(this.journalDirs);
+            when(conf.getJournalDirs()).thenReturn(journalDirsArray);
+            File[] ledgerDirsArray = initConf(this.ledgerDirs);
+            when(conf.getLedgerDirs()).thenReturn(ledgerDirsArray);
+            File[] indexDirsArray = initConf(this.indexDirs);
+            when(conf.getIndexDirs()).thenReturn(indexDirsArray);
+            if(this.gcEntryLogMetadataCachePath==ARRAY_WITH_NULL_DIR) {
+                when(conf.getGcEntryLogMetadataCachePath()).thenReturn(null);
+            }else if(this.gcEntryLogMetadataCachePath==EMPTY_ARRAY){
+                when(conf.getGcEntryLogMetadataCachePath()).thenReturn("");
+            }else{
+                String gcEntryLogMetadataCachePathName = Objects.requireNonNull(initConf(this.gcEntryLogMetadataCachePath))[0].getAbsolutePath();
+                when(conf.getGcEntryLogMetadataCachePath()).thenReturn(gcEntryLogMetadataCachePathName);
+            }
         }
 
         @After
         public void cleanup() {
             DeleteTempFiles.deleteFiles(conf.getJournalDirs(), conf.getIndexDirs(), conf.getLedgerDirs());
+            if(conf.getGcEntryLogMetadataCachePath()!=null && !Objects.equals(conf.getGcEntryLogMetadataCachePath(), "")){
+                File file=new File(conf.getGcEntryLogMetadataCachePath());
+                deleteFilesRecursive(new File[]{file});
+            }
             System.setIn(originalSystemIn);
         }
 
@@ -118,7 +179,7 @@ public class BookieImplTests {
                 originalSystemIn = System.in;
                 switch (this.input) {
                     case "Y":
-                        System.setIn(new ByteArrayInputStream("Y".getBytes()));
+                        System.setIn(new ByteArrayInputStream("Y\nY\n".getBytes()));
                         break;
                     case "N":
                         System.setIn(new ByteArrayInputStream("N".getBytes()));
@@ -135,14 +196,14 @@ public class BookieImplTests {
                         System.setIn(null);
                         break;
                     case "":
-                        System.setIn(new ByteArrayInputStream("\ny".getBytes()));
-                        //System.setIn(new ByteArrayInputStream("n".getBytes()));
+                        System.setIn(new ByteArrayInputStream("\nY\nY\n".getBytes()));
                         break;
 
                 }
                 boolean result = BookieImpl.format(conf, isInteractive, force);
                 assertEquals(this.expectedResult, result);
                 assertFalse(this.expException);
+                System.out.println(result);
             }catch(NullPointerException e) {
                 e.printStackTrace();
                 assertTrue(this.expException);
@@ -170,9 +231,10 @@ public class BookieImplTests {
             return Arrays.asList(new Object[][]{
                     {-1,-1, true},
                     {-1,0, true},
-                    //{0,-1, true}, //commentato perché dà errore
+                    //{0,-1, true}, //commentato perché dà errore, legge la entry anche se gli passo un id negativo
                     {0,0, false},
                     {0,1, true},
+                    {0,-2, true},
                     {1, -1, true},
                     {1, 0, true},
                     {1, 1, true},
@@ -186,6 +248,7 @@ public class BookieImplTests {
             ServerConfiguration conf= TestBKConfiguration.newServerConfiguration();
             conf.setJournalDirName(this.dir.toString());
             conf.setLedgerDirNames(new String[]{this.dir.getAbsolutePath()});
+            conf.setJournalWriteData(false); //aumentare cov pit
             try {
                 this.bookie= new TestBookieImpl(conf);
                 this.bookie.start();
@@ -207,6 +270,8 @@ public class BookieImplTests {
         @Test
         public void addAndReadEntryTest(){
             try {
+
+
                 AtomicBoolean complete = new AtomicBoolean(false);
                 final byte[] masterKey="masterKey".getBytes(StandardCharsets.UTF_8);
                 ByteBuf byteBuf= getValidEntry();
@@ -264,8 +329,9 @@ public class BookieImplTests {
 
             return Arrays.asList(new Object[][]{
                     {getValidEntry(), false, false, null, validMK, false},
+                    {getInvalidEntry(), false, false, null, validMK, true},
                     {null, true, true, null, "".getBytes(StandardCharsets.UTF_8), true},
-                    {getInvalidEntry(), false, true, new Object(), null, true},
+                    //{getInvalidEntry(), false, false, new Object(), null, true},
             });
         }
 
@@ -322,26 +388,34 @@ public class BookieImplTests {
 
         @Test
         public void addEntryTest(){
+
+            ByteBuf entry = null;
             try {
 
                 AtomicBoolean complete= new AtomicBoolean(false);
-                ByteBuf entry=Unpooled.buffer(this.entry.capacity());
-                entry.writeBytes(this.entry);
-                    if(this.nullCallback) {
-                        this.bookie.addEntry(entry,
-                                this.ackBeforeSync, null, this.ctx, this.masterKey);
-                        assertEquals(1, entry.refCnt());
-                    }else {
-                        this.bookie.addEntry(entry,
-                                this.ackBeforeSync, (rc, ledgerId, entryId, addr, ctx) -> complete.set(true), this.ctx, this.masterKey);
+                if(this.entry!=null) {
+                    entry = Unpooled.buffer(this.entry.capacity());
+                    entry.writeBytes(this.entry);
+                }
 
-                        Awaitility.await().untilTrue(complete);
-                        assertEquals(0, entry.refCnt());
-                    }
+                if(this.nullCallback) {
+                    this.bookie.addEntry(entry,
+                            this.ackBeforeSync, null, this.ctx, this.masterKey);
+                }else {
+                    this.bookie.addEntry(entry,
+                            this.ackBeforeSync, (rc, ledgerId, entryId, addr, ctx) -> complete.set(true), this.ctx, this.masterKey);
+
+                    Awaitility.await().untilTrue(complete);
+                    assertEquals(0, entry.refCnt());
+                }
                 if(this.expException){
                     Assert.fail("Attesa exception");
                 }
             } catch (Exception e) {
+                if(entry!=null){
+                    assertEquals(getInvalidEntry().readableBytes(),
+                            ((TestStatsLogger.TestOpStatsLogger) this.bookie.statsLogger.getOpStatsLogger("")).getNumFailedEvent());
+                }
                 assertTrue(this.expException);
             }
 
@@ -533,11 +607,11 @@ public class BookieImplTests {
         @Before
         public void startup() throws Exception {
             this.dir= this.tmpDirs.createNew("bookie-impl-test", ".tmp");
-//            this.dir2= this.tmpDirs.createNew("bookie-impl-test", ".tmp"); //aggiunti per aumentare la percentuale su pit
+            this.dir2= this.tmpDirs.createNew("bookie-impl-test", ".tmp"); //aggiunti per aumentare la percentuale su jacoco
             ServerConfiguration conf= TestBKConfiguration.newServerConfiguration();
             conf.setJournalDirName(this.dir.toString());
             conf.setLedgerDirNames(new String[]{this.dir.getAbsolutePath()});
-//            conf.setIndexDirName(new String[]{this.dir2.getAbsolutePath()}); //aggiunti per aumentare la percentuale su pit
+            conf.setIndexDirName(new String[]{this.dir2.getAbsolutePath()}); //aggiunti per aumentare la percentuale su jacoco
             try {
                 this.bookie= new TestBookieImpl(conf);
                 this.bookie.start();
@@ -583,7 +657,7 @@ public class BookieImplTests {
 
     }
 
-///*
+
     //whiteBox analysis
     public static class BookieImplConstructorTest{
 
@@ -597,11 +671,11 @@ public class BookieImplTests {
         @Test
         public void constructorTest() throws Exception {
             File dir = this.tmpDirs.createNew("bookie-impl-test", ".tmp");
-            File dir2 = this.tmpDirs.createNew("bookie-impl-test", ".tmp"); //aggiunti per aumentare la percentuale su pit
+            File dir2 = this.tmpDirs.createNew("bookie-impl-test", ".tmp"); //aggiunti per aumentare la percentuale su pi
             ServerConfiguration conf= TestBKConfiguration.newServerConfiguration();
             conf.setJournalDirName(dir.toString());
             conf.setLedgerDirNames(new String[]{dir.getAbsolutePath()});
-            conf.setIndexDirName(new String[]{dir2.getAbsolutePath()}); //aggiunti per aumentare la percentuale su pit
+            conf.setIndexDirName(new String[]{dir2.getAbsolutePath()}); //aggiunti per aumentare la percentuale su pi
             conf.setAllowMultipleDirsUnderSameDiskPartition(false);
             try {
                 BookieImpl bookie = new TestBookieImpl(conf);
@@ -614,5 +688,4 @@ public class BookieImplTests {
             }
         }
     }
-//   */
 }

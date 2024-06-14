@@ -53,7 +53,7 @@ public class TestBookieImpl extends BookieImpl {
                 resources.diskChecker,
                 resources.ledgerDirsManager,
                 resources.indexDirsManager,
-                NullStatsLogger.INSTANCE,
+                TestStatsLogger.INSTANCE,
                 UnpooledByteBufAllocator.DEFAULT,
                 new SimpleBookieServiceInfoProvider(resources.conf));
         this.resources = resources;

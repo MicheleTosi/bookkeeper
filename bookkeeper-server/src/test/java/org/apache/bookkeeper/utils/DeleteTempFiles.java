@@ -53,19 +53,21 @@ public class DeleteTempFiles {
         }
     }
 
-    private static void deleteFilesRecursive(File[] files) {
+    public static void deleteFilesRecursive(File[] files) {
         if (files == null) {
             return;
         }
 
         for (File file : files) {
-            if(file!=null && file.exists()){
-                if(file.isDirectory()){
-                    deleteDirectory(file);
-                }else{
-                    file.delete();
+            try {
+                if (file != null && file.exists()) {
+                    if (file.isDirectory()) {
+                        deleteDirectory(file);
+                    } else {
+                        file.delete();
+                    }
                 }
-            }
+            }catch(Exception e){}
         }
     }
 }
